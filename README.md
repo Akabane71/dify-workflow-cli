@@ -1,5 +1,7 @@
 # Dify AI Workflow Tools
 
+[English README](README_EN.md)
+
 **本地创建、编辑、校验、布局、导出 Dify 全部 5 种应用类型的 CLI 工具。**
 
 基于 Dify 前端 + 后端源码逆向分析 DSL v0.6.0 格式，覆盖 **Workflow、Chatflow、聊天助手、Agent、文本生成** 全部模式。
