@@ -1,0 +1,36 @@
+{
+  "retry_config": {
+    "enabled": false,
+    "max_retries": 3,
+    "retry_interval": 100,
+    "exponential_backoff": {
+      "enabled": false,
+      "multiplier": 2,
+      "max_interval": 10000
+    }
+  },
+  "url": "https://api.example.com/process",
+  "method": "post",
+  "headers": "{\"Content-Type\": \"application/json\"}",
+  "body": {
+    "type": "json",
+    "data": [
+      {
+        "key": "",
+        "type": "text",
+        "value": "{{#start_node.query#}}"
+      }
+    ]
+  },
+  "params": "{}",
+  "authorization": {
+    "type": "no-auth",
+    "config": null
+  },
+  "timeout": {
+    "max_connect_timeout": 0,
+    "max_read_timeout": 0,
+    "max_write_timeout": 0
+  },
+  "ssl_verify": true
+}

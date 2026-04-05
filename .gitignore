@@ -1,0 +1,19 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+dify-test
+
+dify_ai_workflow_tools.egg-info
+.pytest_cache/
+examples/*
+.workflow_tmp
+temp_graphon
+tmp*

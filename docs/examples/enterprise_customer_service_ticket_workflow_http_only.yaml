@@ -1,0 +1,1732 @@
+version: 0.6.0
+kind: app
+app:
+  name: 企业客服与工单处理工作流
+  mode: workflow
+  icon: 🤖
+  icon_type: emoji
+  icon_background: '#FFEAD5'
+  description: ''
+  use_icon_as_answer_icon: false
+workflow:
+  graph:
+    nodes:
+    - id: start_node
+      type: custom
+      data:
+        type: start
+        title: Start
+        desc: ''
+        selected: false
+        variables:
+        - variable: query
+          label: 用户问题
+          type: paragraph
+          required: true
+          options: []
+          value_selector: []
+      position:
+        x: 30.0
+        y: 635.0
+      positionAbsolute:
+        x: 30.0
+        y: 635.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: preprocess_node
+      type: custom
+      data:
+        type: http-request
+        title: 输入清洗 / 敏感检测
+        desc: ''
+        selected: false
+        provider_id: internal_input_guard
+        provider_type: api
+        tool_name: clean_and_detect_sensitive
+        tool_parameters:
+          query: '{{#start_node.query#}}'
+        url: https://api.internal.example.com/mock
+        method: post
+        headers: Content-Type:application/json
+        body:
+          type: json
+          data: []
+        tool_configurations: {}
+        params: ''
+        authorization:
+          type: no-auth
+          config: null
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 30
+          max_write_timeout: 30
+        ssl_verify: true
+      position:
+        x: 374.0
+        y: 635.0
+      positionAbsolute:
+        x: 374.0
+        y: 635.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: intent_classifier_node
+      type: custom
+      data:
+        type: question-classifier
+        title: 意图识别
+        desc: ''
+        selected: false
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.1
+        vision:
+          enabled: false
+          configs:
+            variable_selector: []
+        query_variable_selector:
+        - start_node
+        - query
+        classes:
+        - id: consult
+          name: 咨询类
+        - id: order
+          name: 订单类
+        - id: fault
+          name: 故障类
+        - id: complaint
+          name: 投诉类
+        instruction: 将用户问题分类为咨询类/订单类/故障类/投诉类。
+      position:
+        x: 718.0
+        y: 635.0
+      positionAbsolute:
+        x: 718.0
+        y: 635.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: consult_kb_node
+      type: custom
+      data:
+        type: knowledge-retrieval
+        title: 知识库检索
+        desc: ''
+        selected: false
+        dataset_ids:
+        - kb_enterprise_cs
+        retrieval_model:
+          search_method: semantic_search
+          top_k: 3
+        query_variable_selector:
+        - start_node
+        - query
+      position:
+        x: 1062.0
+        y: 194.0
+      positionAbsolute:
+        x: 1062.0
+        y: 194.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: consult_confidence_node
+      type: custom
+      data:
+        type: if-else
+        title: 检索结果置信度判断
+        desc: ''
+        selected: false
+        cases:
+        - id: 'true'
+          case_id: 'true'
+          conditions:
+          - id: c1
+            comparison_operator: contains
+            value: 咨询
+            varType: string
+            variable_selector:
+            - start_node
+            - query
+          logical_operator: and
+      position:
+        x: 1406.0
+        y: 194.0
+      positionAbsolute:
+        x: 1406.0
+        y: 194.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: consult_reply_node
+      type: custom
+      data:
+        type: llm
+        title: LLM生成正式回复
+        desc: ''
+        selected: false
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.2
+        prompt_template:
+        - role: system
+          text: 你是企业客服助手，请给出正式且可执行的答复。
+        - role: user
+          text: 用户问题：{{#start_node.query#}}`n检索结果：{{#consult_kb_node.result#}}
+        vision:
+          enabled: false
+          configs:
+            variable_selector: []
+        memory:
+          enabled: false
+          window:
+            enabled: false
+            size: 50
+        context:
+          enabled: false
+          variable_selector: []
+        structured_output:
+          enabled: false
+        retry_config:
+          enabled: false
+          max_retries: 1
+          retry_interval: 1000
+          exponential_backoff:
+            enabled: false
+            multiplier: 2
+            max_interval: 10000
+      position:
+        x: 1750.0
+        y: 68.0
+      positionAbsolute:
+        x: 1750.0
+        y: 68.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: consult_clarify_node
+      type: custom
+      data:
+        type: llm
+        title: 补问节点 / 澄清问题
+        desc: ''
+        selected: false
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.3
+        prompt_template:
+        - role: system
+          text: 你是企业客服助手，请提出一个澄清问题以补齐上下文。
+        - role: user
+          text: 当前信息不足，请向用户补问关键细节。
+        vision:
+          enabled: false
+          configs:
+            variable_selector: []
+        memory:
+          enabled: false
+          window:
+            enabled: false
+            size: 50
+        context:
+          enabled: false
+          variable_selector: []
+        structured_output:
+          enabled: false
+        retry_config:
+          enabled: false
+          max_retries: 1
+          retry_interval: 1000
+          exponential_backoff:
+            enabled: false
+            multiplier: 2
+            max_interval: 10000
+      position:
+        x: 1750.0
+        y: 257.0
+      positionAbsolute:
+        x: 1750.0
+        y: 257.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: consult_more_info_node
+      type: custom
+      data:
+        type: if-else
+        title: 用户是否补充信息
+        desc: ''
+        selected: false
+        cases:
+        - id: 'true'
+          case_id: 'true'
+          conditions:
+          - id: c2
+            comparison_operator: contains
+            value: 补充
+            varType: string
+            variable_selector:
+            - start_node
+            - query
+          logical_operator: and
+      position:
+        x: 2094.0
+        y: 257.0
+      positionAbsolute:
+        x: 2094.0
+        y: 257.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: consult_handoff_node
+      type: custom
+      data:
+        type: http-request
+        title: 转人工
+        desc: ''
+        selected: false
+        provider_id: internal_human_service
+        provider_type: api
+        tool_name: handoff_to_human_agent
+        tool_parameters:
+          reason: insufficient_context
+        url: https://api.internal.example.com/mock
+        method: post
+        headers: Content-Type:application/json
+        body:
+          type: json
+          data: []
+        tool_configurations: {}
+        params: ''
+        authorization:
+          type: no-auth
+          config: null
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 30
+          max_write_timeout: 30
+        ssl_verify: true
+      position:
+        x: 2438.0
+        y: 320.0
+      positionAbsolute:
+        x: 2438.0
+        y: 320.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: order_api_node
+      type: custom
+      data:
+        type: http-request
+        title: 调用订单系统 API
+        desc: ''
+        selected: false
+        retry_config:
+          enabled: false
+          max_retries: 3
+          retry_interval: 100
+          exponential_backoff:
+            enabled: false
+            multiplier: 2
+            max_interval: 10000
+        url: https://api.example.com/order
+        method: get
+        headers: '{}'
+        body:
+          type: none
+          data: []
+        params: '{}'
+        authorization:
+          type: no-auth
+          config: null
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        ssl_verify: true
+      position:
+        x: 1062.0
+        y: 572.0
+      positionAbsolute:
+        x: 1062.0
+        y: 572.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: order_type_node
+      type: custom
+      data:
+        type: question-classifier
+        title: 订单诉求类型
+        desc: ''
+        selected: false
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.1
+        vision:
+          enabled: false
+          configs:
+            variable_selector: []
+        query_variable_selector:
+        - order_api_node
+        - body
+        classes:
+        - id: refund
+          name: 退款
+        - id: urge
+          name: 催单
+        - id: address
+          name: 改址
+        instruction: 判断订单诉求类型：退款、催单、改址。
+      position:
+        x: 1406.0
+        y: 572.0
+      positionAbsolute:
+        x: 1406.0
+        y: 572.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: refund_check_node
+      type: custom
+      data:
+        type: http-request
+        title: 执行退款规则校验
+        desc: ''
+        selected: false
+        provider_id: internal_order_rule
+        provider_type: api
+        tool_name: validate_refund_rule
+        tool_parameters:
+          order_payload: '{{#order_api_node.body#}}'
+        url: https://api.internal.example.com/mock
+        method: post
+        headers: Content-Type:application/json
+        body:
+          type: json
+          data: []
+        tool_configurations: {}
+        params: ''
+        authorization:
+          type: no-auth
+          config: null
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 30
+          max_write_timeout: 30
+        ssl_verify: true
+      position:
+        x: 1750.0
+        y: 446.0
+      positionAbsolute:
+        x: 1750.0
+        y: 446.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: urge_status_node
+      type: custom
+      data:
+        type: http-request
+        title: 查询物流与履约状态
+        desc: ''
+        selected: false
+        provider_id: internal_logistics
+        provider_type: api
+        tool_name: query_fulfillment_status
+        tool_parameters:
+          order_payload: '{{#order_api_node.body#}}'
+        url: https://api.internal.example.com/mock
+        method: post
+        headers: Content-Type:application/json
+        body:
+          type: json
+          data: []
+        tool_configurations: {}
+        params: ''
+        authorization:
+          type: no-auth
+          config: null
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 30
+          max_write_timeout: 30
+        ssl_verify: true
+      position:
+        x: 1750.0
+        y: 572.0
+      positionAbsolute:
+        x: 1750.0
+        y: 572.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: address_check_node
+      type: custom
+      data:
+        type: http-request
+        title: 校验是否允许修改地址
+        desc: ''
+        selected: false
+        provider_id: internal_order_rule
+        provider_type: api
+        tool_name: validate_address_change
+        tool_parameters:
+          order_payload: '{{#order_api_node.body#}}'
+        url: https://api.internal.example.com/mock
+        method: post
+        headers: Content-Type:application/json
+        body:
+          type: json
+          data: []
+        tool_configurations: {}
+        params: ''
+        authorization:
+          type: no-auth
+          config: null
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 30
+          max_write_timeout: 30
+        ssl_verify: true
+      position:
+        x: 1750.0
+        y: 698.0
+      positionAbsolute:
+        x: 1750.0
+        y: 698.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: order_reply_node
+      type: custom
+      data:
+        type: llm
+        title: LLM生成订单答复
+        desc: ''
+        selected: false
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.2
+        prompt_template:
+        - role: system
+          text: 你是订单客服助手，请输出结构化答复。
+        - role: user
+          text: 订单信息：{{#order_api_node.body#}}
+        vision:
+          enabled: false
+          configs:
+            variable_selector: []
+        memory:
+          enabled: false
+          window:
+            enabled: false
+            size: 50
+        context:
+          enabled: false
+          variable_selector: []
+        structured_output:
+          enabled: false
+        retry_config:
+          enabled: false
+          max_retries: 1
+          retry_interval: 1000
+          exponential_backoff:
+            enabled: false
+            multiplier: 2
+            max_interval: 10000
+      position:
+        x: 2094.0
+        y: 446.0
+      positionAbsolute:
+        x: 2094.0
+        y: 446.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: fault_extract_node
+      type: custom
+      data:
+        type: http-request
+        title: 提取报错码 / 日志
+        desc: ''
+        selected: false
+        provider_id: internal_fault_tools
+        provider_type: api
+        tool_name: extract_error_code_and_logs
+        tool_parameters:
+          query: '{{#start_node.query#}}'
+        url: https://api.internal.example.com/mock
+        method: post
+        headers: Content-Type:application/json
+        body:
+          type: json
+          data: []
+        tool_configurations: {}
+        params: ''
+        authorization:
+          type: no-auth
+          config: null
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 30
+          max_write_timeout: 30
+        ssl_verify: true
+      position:
+        x: 1062.0
+        y: 887.0
+      positionAbsolute:
+        x: 1062.0
+        y: 887.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: fault_monitor_node
+      type: custom
+      data:
+        type: http-request
+        title: 调用监控 / 服务状态工具
+        desc: ''
+        selected: false
+        provider_id: internal_observability
+        provider_type: api
+        tool_name: query_service_health
+        tool_parameters:
+          error_context: '{{#fault_extract_node.result#}}'
+        url: https://api.internal.example.com/mock
+        method: post
+        headers: Content-Type:application/json
+        body:
+          type: json
+          data: []
+        tool_configurations: {}
+        params: ''
+        authorization:
+          type: no-auth
+          config: null
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 30
+          max_write_timeout: 30
+        ssl_verify: true
+      position:
+        x: 1406.0
+        y: 887.0
+      positionAbsolute:
+        x: 1406.0
+        y: 887.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: fault_known_node
+      type: custom
+      data:
+        type: if-else
+        title: 是否命中已知故障
+        desc: ''
+        selected: false
+        cases:
+        - id: 'true'
+          case_id: 'true'
+          conditions:
+          - id: c3
+            comparison_operator: contains
+            value: 故障
+            varType: string
+            variable_selector:
+            - start_node
+            - query
+          logical_operator: and
+      position:
+        x: 1750.0
+        y: 887.0
+      positionAbsolute:
+        x: 1750.0
+        y: 887.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: fault_solution_node
+      type: custom
+      data:
+        type: llm
+        title: 输出修复方案与文档链接
+        desc: ''
+        selected: false
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.2
+        prompt_template:
+        - role: system
+          text: 你是技术支持助手，请给出修复方案和文档链接。
+        - role: user
+          text: 故障描述：{{#start_node.query#}}
+        vision:
+          enabled: false
+          configs:
+            variable_selector: []
+        memory:
+          enabled: false
+          window:
+            enabled: false
+            size: 50
+        context:
+          enabled: false
+          variable_selector: []
+        structured_output:
+          enabled: false
+        retry_config:
+          enabled: false
+          max_retries: 1
+          retry_interval: 1000
+          exponential_backoff:
+            enabled: false
+            multiplier: 2
+            max_interval: 10000
+      position:
+        x: 2094.0
+        y: 824.0
+      positionAbsolute:
+        x: 2094.0
+        y: 824.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: fault_ticket_node
+      type: custom
+      data:
+        type: http-request
+        title: 创建技术工单
+        desc: ''
+        selected: false
+        provider_id: internal_ticketing
+        provider_type: api
+        tool_name: create_l2_ticket
+        tool_parameters:
+          fault_context: '{{#start_node.query#}}'
+        url: https://api.internal.example.com/mock
+        method: post
+        headers: Content-Type:application/json
+        body:
+          type: json
+          data: []
+        tool_configurations: {}
+        params: ''
+        authorization:
+          type: no-auth
+          config: null
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 30
+          max_write_timeout: 30
+        ssl_verify: true
+      position:
+        x: 2094.0
+        y: 950.0
+      positionAbsolute:
+        x: 2094.0
+        y: 950.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: fault_notify_node
+      type: custom
+      data:
+        type: http-request
+        title: 通知责任人 / 群机器人
+        desc: ''
+        selected: false
+        provider_id: internal_notify
+        provider_type: api
+        tool_name: notify_owner_and_group_bot
+        tool_parameters:
+          ticket_result: '{{#start_node.query#}}'
+        url: https://api.internal.example.com/mock
+        method: post
+        headers: Content-Type:application/json
+        body:
+          type: json
+          data: []
+        tool_configurations: {}
+        params: ''
+        authorization:
+          type: no-auth
+          config: null
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 30
+          max_write_timeout: 30
+        ssl_verify: true
+      position:
+        x: 2438.0
+        y: 950.0
+      positionAbsolute:
+        x: 2438.0
+        y: 950.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: complaint_risk_node
+      type: custom
+      data:
+        type: http-request
+        title: 情绪分析 / 风险评级
+        desc: ''
+        selected: false
+        provider_id: internal_nlp
+        provider_type: api
+        tool_name: analyze_sentiment_and_risk
+        tool_parameters:
+          query: '{{#start_node.query#}}'
+        url: https://api.internal.example.com/mock
+        method: post
+        headers: Content-Type:application/json
+        body:
+          type: json
+          data: []
+        tool_configurations: {}
+        params: ''
+        authorization:
+          type: no-auth
+          config: null
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 30
+          max_write_timeout: 30
+        ssl_verify: true
+      position:
+        x: 1062.0
+        y: 1139.0
+      positionAbsolute:
+        x: 1062.0
+        y: 1139.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: complaint_high_risk_node
+      type: custom
+      data:
+        type: if-else
+        title: 是否高风险
+        desc: ''
+        selected: false
+        cases:
+        - id: 'true'
+          case_id: 'true'
+          conditions:
+          - id: c4
+            comparison_operator: contains
+            value: 投诉
+            varType: string
+            variable_selector:
+            - start_node
+            - query
+          logical_operator: and
+      position:
+        x: 1406.0
+        y: 1139.0
+      positionAbsolute:
+        x: 1406.0
+        y: 1139.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: complaint_supervisor_node
+      type: custom
+      data:
+        type: http-request
+        title: 直接转人工主管
+        desc: ''
+        selected: false
+        provider_id: internal_human_service
+        provider_type: api
+        tool_name: handoff_to_supervisor
+        tool_parameters:
+          risk: high
+        url: https://api.internal.example.com/mock
+        method: post
+        headers: Content-Type:application/json
+        body:
+          type: json
+          data: []
+        tool_configurations: {}
+        params: ''
+        authorization:
+          type: no-auth
+          config: null
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 30
+          max_write_timeout: 30
+        ssl_verify: true
+      position:
+        x: 1750.0
+        y: 1076.0
+      positionAbsolute:
+        x: 1750.0
+        y: 1076.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: complaint_soothe_node
+      type: custom
+      data:
+        type: llm
+        title: LLM安抚并收集关键信息
+        desc: ''
+        selected: false
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.3
+        prompt_template:
+        - role: system
+          text: 你是投诉处理助手，请先安抚情绪并收集关键信息。
+        - role: user
+          text: 用户投诉：{{#start_node.query#}}
+        vision:
+          enabled: false
+          configs:
+            variable_selector: []
+        memory:
+          enabled: false
+          window:
+            enabled: false
+            size: 50
+        context:
+          enabled: false
+          variable_selector: []
+        structured_output:
+          enabled: false
+        retry_config:
+          enabled: false
+          max_retries: 1
+          retry_interval: 1000
+          exponential_backoff:
+            enabled: false
+            multiplier: 2
+            max_interval: 10000
+      position:
+        x: 1750.0
+        y: 1202.0
+      positionAbsolute:
+        x: 1750.0
+        y: 1202.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: complaint_create_node
+      type: custom
+      data:
+        type: http-request
+        title: 创建投诉工单
+        desc: ''
+        selected: false
+        provider_id: internal_ticketing
+        provider_type: api
+        tool_name: create_complaint_ticket
+        tool_parameters:
+          summary: '{{#complaint_soothe_node.text#}}'
+        url: https://api.internal.example.com/mock
+        method: post
+        headers: Content-Type:application/json
+        body:
+          type: json
+          data: []
+        tool_configurations: {}
+        params: ''
+        authorization:
+          type: no-auth
+          config: null
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 30
+          max_write_timeout: 30
+        ssl_verify: true
+      position:
+        x: 2094.0
+        y: 1202.0
+      positionAbsolute:
+        x: 2094.0
+        y: 1202.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: end_consult_reply
+      type: custom
+      data:
+        type: end
+        title: End 咨询答复
+        desc: ''
+        selected: false
+        outputs:
+        - variable: result
+          value_selector:
+          - consult_reply_node
+          - text
+          value_type: string
+      position:
+        x: 2094.0
+        y: 68.0
+      positionAbsolute:
+        x: 2094.0
+        y: 68.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: end_consult_handoff
+      type: custom
+      data:
+        type: end
+        title: End 转人工
+        desc: ''
+        selected: false
+        outputs:
+        - variable: result
+          value_selector:
+          - consult_clarify_node
+          - text
+          value_type: string
+      position:
+        x: 2782.0
+        y: 320.0
+      positionAbsolute:
+        x: 2782.0
+        y: 320.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: end_order
+      type: custom
+      data:
+        type: end
+        title: End 订单处理
+        desc: ''
+        selected: false
+        outputs:
+        - variable: result
+          value_selector:
+          - order_reply_node
+          - text
+          value_type: string
+      position:
+        x: 2438.0
+        y: 446.0
+      positionAbsolute:
+        x: 2438.0
+        y: 446.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: end_fault_fix
+      type: custom
+      data:
+        type: end
+        title: End 故障修复
+        desc: ''
+        selected: false
+        outputs:
+        - variable: result
+          value_selector:
+          - fault_solution_node
+          - text
+          value_type: string
+      position:
+        x: 2438.0
+        y: 824.0
+      positionAbsolute:
+        x: 2438.0
+        y: 824.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: end_fault_ticket
+      type: custom
+      data:
+        type: end
+        title: End 故障工单通知
+        desc: ''
+        selected: false
+        outputs:
+        - variable: result
+          value_selector:
+          - start_node
+          - query
+          value_type: string
+      position:
+        x: 2782.0
+        y: 950.0
+      positionAbsolute:
+        x: 2782.0
+        y: 950.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: end_complaint_high
+      type: custom
+      data:
+        type: end
+        title: End 高风险投诉
+        desc: ''
+        selected: false
+        outputs:
+        - variable: result
+          value_selector:
+          - start_node
+          - query
+          value_type: string
+      position:
+        x: 2094.0
+        y: 1076.0
+      positionAbsolute:
+        x: 2094.0
+        y: 1076.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: end_complaint_ticket
+      type: custom
+      data:
+        type: end
+        title: End 投诉工单
+        desc: ''
+        selected: false
+        outputs:
+        - variable: result
+          value_selector:
+          - complaint_soothe_node
+          - text
+          value_type: string
+      position:
+        x: 2438.0
+        y: 1202.0
+      positionAbsolute:
+        x: 2438.0
+        y: 1202.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: consult_kb_retry_node
+      type: custom
+      data:
+        type: knowledge-retrieval
+        title: 知识库检索(补充后重试)
+        desc: ''
+        selected: false
+        dataset_ids:
+        - kb_enterprise_cs
+        retrieval_model:
+          search_method: semantic_search
+          top_k: 3
+        query_variable_selector:
+        - start_node
+        - query
+      position:
+        x: 2438.0
+        y: 194.0
+      positionAbsolute:
+        x: 2438.0
+        y: 194.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: consult_confidence_retry_node
+      type: custom
+      data:
+        type: if-else
+        title: 重试检索结果置信度判断
+        desc: ''
+        selected: false
+        cases:
+        - id: 'true'
+          case_id: 'true'
+          conditions:
+          - id: retry_c1
+            comparison_operator: contains
+            value: ??
+            varType: string
+            variable_selector:
+            - start_node
+            - query
+          logical_operator: and
+      position:
+        x: 2782.0
+        y: 194.0
+      positionAbsolute:
+        x: 2782.0
+        y: 194.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    edges:
+    - id: start_node-source-preprocess_node-target
+      source: start_node
+      target: preprocess_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: start
+        targetType: tool
+        isInIteration: false
+        isInLoop: false
+    - id: preprocess_node-source-intent_classifier_node-target
+      source: preprocess_node
+      target: intent_classifier_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: tool
+        targetType: question-classifier
+        isInIteration: false
+        isInLoop: false
+    - id: intent_classifier_node-consult-consult_kb_node-target
+      source: intent_classifier_node
+      target: consult_kb_node
+      sourceHandle: consult
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: question-classifier
+        targetType: knowledge-retrieval
+        isInIteration: false
+        isInLoop: false
+    - id: consult_kb_node-source-consult_confidence_node-target
+      source: consult_kb_node
+      target: consult_confidence_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: knowledge-retrieval
+        targetType: if-else
+        isInIteration: false
+        isInLoop: false
+    - id: consult_confidence_node-true-consult_reply_node-target
+      source: consult_confidence_node
+      target: consult_reply_node
+      sourceHandle: 'true'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+    - id: consult_reply_node-source-end_consult_reply-target
+      source: consult_reply_node
+      target: end_consult_reply
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: llm
+        targetType: end
+        isInIteration: false
+        isInLoop: false
+    - id: consult_confidence_node-false-consult_clarify_node-target
+      source: consult_confidence_node
+      target: consult_clarify_node
+      sourceHandle: 'false'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+    - id: consult_clarify_node-source-consult_more_info_node-target
+      source: consult_clarify_node
+      target: consult_more_info_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: llm
+        targetType: if-else
+        isInIteration: false
+        isInLoop: false
+    - id: consult_more_info_node-false-consult_handoff_node-target
+      source: consult_more_info_node
+      target: consult_handoff_node
+      sourceHandle: 'false'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: if-else
+        targetType: tool
+        isInIteration: false
+        isInLoop: false
+    - id: consult_handoff_node-source-end_consult_handoff-target
+      source: consult_handoff_node
+      target: end_consult_handoff
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: tool
+        targetType: end
+        isInIteration: false
+        isInLoop: false
+    - id: intent_classifier_node-order-order_api_node-target
+      source: intent_classifier_node
+      target: order_api_node
+      sourceHandle: order
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: question-classifier
+        targetType: http-request
+        isInIteration: false
+        isInLoop: false
+    - id: order_api_node-source-order_type_node-target
+      source: order_api_node
+      target: order_type_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: http-request
+        targetType: question-classifier
+        isInIteration: false
+        isInLoop: false
+    - id: order_type_node-refund-refund_check_node-target
+      source: order_type_node
+      target: refund_check_node
+      sourceHandle: refund
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: question-classifier
+        targetType: tool
+        isInIteration: false
+        isInLoop: false
+    - id: order_type_node-urge-urge_status_node-target
+      source: order_type_node
+      target: urge_status_node
+      sourceHandle: urge
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: question-classifier
+        targetType: tool
+        isInIteration: false
+        isInLoop: false
+    - id: order_type_node-address-address_check_node-target
+      source: order_type_node
+      target: address_check_node
+      sourceHandle: address
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: question-classifier
+        targetType: tool
+        isInIteration: false
+        isInLoop: false
+    - id: refund_check_node-source-order_reply_node-target
+      source: refund_check_node
+      target: order_reply_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: tool
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+    - id: urge_status_node-source-order_reply_node-target
+      source: urge_status_node
+      target: order_reply_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: tool
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+    - id: address_check_node-source-order_reply_node-target
+      source: address_check_node
+      target: order_reply_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: tool
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+    - id: order_reply_node-source-end_order-target
+      source: order_reply_node
+      target: end_order
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: llm
+        targetType: end
+        isInIteration: false
+        isInLoop: false
+    - id: intent_classifier_node-fault-fault_extract_node-target
+      source: intent_classifier_node
+      target: fault_extract_node
+      sourceHandle: fault
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: question-classifier
+        targetType: tool
+        isInIteration: false
+        isInLoop: false
+    - id: fault_extract_node-source-fault_monitor_node-target
+      source: fault_extract_node
+      target: fault_monitor_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: tool
+        targetType: tool
+        isInIteration: false
+        isInLoop: false
+    - id: fault_monitor_node-source-fault_known_node-target
+      source: fault_monitor_node
+      target: fault_known_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: tool
+        targetType: if-else
+        isInIteration: false
+        isInLoop: false
+    - id: fault_known_node-true-fault_solution_node-target
+      source: fault_known_node
+      target: fault_solution_node
+      sourceHandle: 'true'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+    - id: fault_solution_node-source-end_fault_fix-target
+      source: fault_solution_node
+      target: end_fault_fix
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: llm
+        targetType: end
+        isInIteration: false
+        isInLoop: false
+    - id: fault_known_node-false-fault_ticket_node-target
+      source: fault_known_node
+      target: fault_ticket_node
+      sourceHandle: 'false'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: if-else
+        targetType: tool
+        isInIteration: false
+        isInLoop: false
+    - id: fault_ticket_node-source-fault_notify_node-target
+      source: fault_ticket_node
+      target: fault_notify_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: tool
+        targetType: tool
+        isInIteration: false
+        isInLoop: false
+    - id: fault_notify_node-source-end_fault_ticket-target
+      source: fault_notify_node
+      target: end_fault_ticket
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: tool
+        targetType: end
+        isInIteration: false
+        isInLoop: false
+    - id: intent_classifier_node-complaint-complaint_risk_node-target
+      source: intent_classifier_node
+      target: complaint_risk_node
+      sourceHandle: complaint
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: question-classifier
+        targetType: tool
+        isInIteration: false
+        isInLoop: false
+    - id: complaint_risk_node-source-complaint_high_risk_node-target
+      source: complaint_risk_node
+      target: complaint_high_risk_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: tool
+        targetType: if-else
+        isInIteration: false
+        isInLoop: false
+    - id: complaint_high_risk_node-true-complaint_supervisor_node-target
+      source: complaint_high_risk_node
+      target: complaint_supervisor_node
+      sourceHandle: 'true'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: if-else
+        targetType: tool
+        isInIteration: false
+        isInLoop: false
+    - id: complaint_supervisor_node-source-end_complaint_high-target
+      source: complaint_supervisor_node
+      target: end_complaint_high
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: tool
+        targetType: end
+        isInIteration: false
+        isInLoop: false
+    - id: complaint_high_risk_node-false-complaint_soothe_node-target
+      source: complaint_high_risk_node
+      target: complaint_soothe_node
+      sourceHandle: 'false'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+    - id: complaint_soothe_node-source-complaint_create_node-target
+      source: complaint_soothe_node
+      target: complaint_create_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: llm
+        targetType: tool
+        isInIteration: false
+        isInLoop: false
+    - id: complaint_create_node-source-end_complaint_ticket-target
+      source: complaint_create_node
+      target: end_complaint_ticket
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: tool
+        targetType: end
+        isInIteration: false
+        isInLoop: false
+    - id: consult_more_info_node-true-consult_kb_retry_node-target
+      source: consult_more_info_node
+      target: consult_kb_retry_node
+      sourceHandle: 'true'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: if-else
+        targetType: knowledge-retrieval
+        isInIteration: false
+        isInLoop: false
+    - id: consult_kb_retry_node-source-consult_confidence_retry_node-target
+      source: consult_kb_retry_node
+      target: consult_confidence_retry_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: knowledge-retrieval
+        targetType: if-else
+        isInIteration: false
+        isInLoop: false
+    - id: consult_confidence_retry_node-true-consult_reply_node-target
+      source: consult_confidence_retry_node
+      target: consult_reply_node
+      sourceHandle: 'true'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: if-else
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+    - id: consult_confidence_retry_node-false-consult_handoff_node-target
+      source: consult_confidence_retry_node
+      target: consult_handoff_node
+      sourceHandle: 'false'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: if-else
+        targetType: http-request
+        isInIteration: false
+        isInLoop: false
+    viewport:
+      x: 0.0
+      y: 0.0
+      zoom: 1.0
+  features:
+    file_upload:
+      enabled: false
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+  environment_variables: []
+  conversation_variables: []
+  rag_pipeline_variables: []
+dependencies: []

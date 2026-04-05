@@ -1,0 +1,31 @@
+{
+  "model": {
+    "provider": "openai",
+    "name": "gpt-4o-mini",
+    "mode": "chat",
+    "completion_params": {
+      "temperature": 0.1
+    }
+  },
+  "vision": {
+    "enabled": false,
+    "configs": {
+      "variable_selector": []
+    }
+  },
+  "query_variable_selector": [
+    "start_node",
+    "query"
+  ],
+  "classes": [
+    {
+      "id": "sales",
+      "name": "Sales"
+    },
+    {
+      "id": "support",
+      "name": "Support"
+    }
+  ],
+  "instruction": "Classify the user request into one of the defined classes."
+}

@@ -1,0 +1,50 @@
+{
+  "model": {
+    "provider": "openai",
+    "name": "gpt-4o-mini",
+    "mode": "chat",
+    "completion_params": {
+      "temperature": 0.3
+    }
+  },
+  "prompt_template": [
+    {
+      "role": "system",
+      "text": "You are a helpful assistant."
+    },
+    {
+      "role": "user",
+      "text": "{{#start_node.query#}}"
+    }
+  ],
+  "vision": {
+    "enabled": false,
+    "configs": {
+      "variable_selector": []
+    }
+  },
+  "memory": {
+    "enabled": false,
+    "window": {
+      "enabled": false,
+      "size": 50
+    }
+  },
+  "context": {
+    "enabled": false,
+    "variable_selector": []
+  },
+  "structured_output": {
+    "enabled": false
+  },
+  "retry_config": {
+    "enabled": false,
+    "max_retries": 1,
+    "retry_interval": 1000,
+    "exponential_backoff": {
+      "enabled": false,
+      "multiplier": 2,
+      "max_interval": 10000
+    }
+  }
+}

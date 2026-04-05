@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dify-ai-workflow-tools"
+version = "0.1.1"
+description = "CLI tool for creating, editing, validating, and exporting Dify workflow DSL files"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.1",
+    "pyyaml>=6.0",
+    "pydantic>=2.0",
+    "rich>=13.0",
+    "pytest>=9.0.2",
+]
+
+[project.scripts]
+dify-workflow = "dify_workflow.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["dify_workflow*"]
+exclude = ["temp_graphon*", "dify-test*", "tests*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
