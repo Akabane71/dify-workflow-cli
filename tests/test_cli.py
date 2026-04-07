@@ -31,6 +31,7 @@ class TestHelpDiscovery:
         assert "FOR AI AGENTS" in result.output
         assert "guide" in result.output
         assert "list-node-types" in result.output
+        assert "remote" in result.output
 
     def test_root_no_args_shows_help(self, runner):
         result = runner.invoke(cli, [])
@@ -110,6 +111,21 @@ class TestHelpDiscovery:
         result = runner.invoke(cli, ["import", "--help"])
         assert result.exit_code == 0
         assert "EXAMPLES" in result.output
+
+    def test_remote_help(self, runner):
+        result = runner.invoke(cli, ["remote", "--help"])
+        assert result.exit_code == 0
+        assert "login" in result.output
+        assert "push" in result.output
+        assert "pull" in result.output
+        assert "list" in result.output
+
+    def test_remote_login_help_explains_server_url(self, runner):
+        result = runner.invoke(cli, ["remote", "login", "--help"])
+        assert result.exit_code == 0
+        assert "Dify base URL" in result.output
+        assert "http://localhost" in result.output
+        assert "/signin" in result.output
 
 
 class TestGuideCommand:

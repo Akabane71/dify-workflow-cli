@@ -85,6 +85,7 @@ def cli(ctx):
       import            Import, validate, and re-export a workflow
       diff              Compare two workflow files
       layout            Auto-layout workflow nodes
+            remote            Login to Dify Console and push/pull remote apps
     """
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
@@ -421,6 +422,7 @@ from .cli_edit import edit  # noqa: E402
 from .cli_config import config  # noqa: E402
 from .cli_ops import validate, checklist, export, import_cmd, diff, layout  # noqa: E402
 from .cli_inspect import inspect  # noqa: E402
+from .cli_remote import remote  # noqa: E402
 
 cli.add_command(edit)
 cli.add_command(config)
@@ -431,6 +433,7 @@ cli.add_command(inspect)
 cli.add_command(import_cmd, "import")
 cli.add_command(diff)
 cli.add_command(layout)
+cli.add_command(remote)
 
 
 if __name__ == "__main__":
