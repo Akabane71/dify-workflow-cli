@@ -1,0 +1,160 @@
+version: 0.6.0
+kind: app
+app:
+  name: llm-simple
+  mode: workflow
+  icon: 🤖
+  icon_type: emoji
+  icon_background: '#FFEAD5'
+  description: ''
+  use_icon_as_answer_icon: false
+workflow:
+  graph:
+    nodes:
+    - id: start_node
+      type: custom
+      data:
+        type: start
+        title: Start
+        desc: ''
+        selected: false
+        variables:
+        - variable: query
+          label: query
+          type: text-input
+          required: true
+          options: []
+          value_selector: []
+      position:
+        x: 30.0
+        y: 227.0
+      positionAbsolute:
+        x: 30.0
+        y: 227.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: llm_node
+      type: custom
+      data:
+        type: llm
+        title: LLM
+        desc: ''
+        selected: false
+        model:
+          provider: openai
+          name: gpt-4o
+          mode: chat
+          completion_params: {}
+        prompt_template:
+        - role: system
+          text: You are a helpful assistant.
+        - role: user
+          text: '{{#start_node.query#}}'
+        vision:
+          enabled: false
+          configs:
+            variable_selector: []
+        memory:
+          enabled: false
+          window:
+            enabled: false
+            size: 50
+        context:
+          enabled: false
+          variable_selector: []
+        structured_output:
+          enabled: false
+        retry_config:
+          enabled: false
+          max_retries: 1
+          retry_interval: 1000
+          exponential_backoff:
+            enabled: false
+            multiplier: 2
+            max_interval: 10000
+      position:
+        x: 334.0
+        y: 227.0
+      positionAbsolute:
+        x: 334.0
+        y: 227.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: end_node
+      type: custom
+      data:
+        type: end
+        title: End
+        desc: ''
+        selected: false
+        outputs:
+        - variable: answer
+          value_selector:
+          - llm_node
+          - text
+          value_type: string
+      position:
+        x: 638.0
+        y: 227.0
+      positionAbsolute:
+        x: 638.0
+        y: 227.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    edges:
+    - id: start_node-source-llm_node-target
+      source: start_node
+      target: llm_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: start
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+    - id: llm_node-source-end_node-target
+      source: llm_node
+      target: end_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: llm
+        targetType: end
+        isInIteration: false
+        isInLoop: false
+    viewport:
+      x: 0.0
+      y: 0.0
+      zoom: 1.0
+  features:
+    file_upload:
+      enabled: false
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+  environment_variables: []
+  conversation_variables: []
+  rag_pipeline_variables: []
+dependencies: []

@@ -1,10 +1,8 @@
-"""Integration tests - end-to-end workflows with real Dify fixture validation."""
+"""Integration tests - end-to-end workflows with local fixture validation."""
 
-import json
-import os
-import pytest
-import yaml
 from pathlib import Path
+
+import pytest
 
 from dify_workflow.editor import (
     add_edge,
@@ -22,8 +20,9 @@ from dify_workflow.models import DifyWorkflowDSL, NodeType
 from dify_workflow.validator import validate_workflow
 
 
-# Path to dify-test fixtures
-DIFY_TEST_FIXTURES = Path(__file__).parent.parent / "dify-test" / "api" / "tests" / "fixtures" / "workflow"
+# Vendored workflow fixtures copied from dify-test so these tests do not depend
+# on an external checkout that is intentionally not committed in this repo.
+TEST_FIXTURES = Path(__file__).parent / "fixtures" / "workflow"
 
 
 class TestCreateAndExportWorkflow:
@@ -216,16 +215,17 @@ class TestRoundTripExportImport:
 
 
 class TestDifyFixtureValidation:
-    """Load real Dify test fixtures and validate them with our tool.
+    """Load vendored Dify-compatible fixtures and validate them with our tool.
 
     This proves our model is compatible with real Dify DSL output.
     """
 
     @pytest.fixture
     def fixture_files(self):
-        if not DIFY_TEST_FIXTURES.exists():
-            pytest.skip("dify-test fixtures not found")
-        return list(DIFY_TEST_FIXTURES.glob("*.yml"))
+        assert TEST_FIXTURES.exists(), f"Fixture directory not found: {TEST_FIXTURES}"
+        fixture_files = sorted(TEST_FIXTURES.glob("*.yml"))
+        assert fixture_files, f"No fixture files found in {TEST_FIXTURES}"
+        return fixture_files
 
     def test_fixtures_exist(self, fixture_files):
         assert len(fixture_files) > 0, "No fixture files found"
@@ -249,9 +249,8 @@ class TestDifyFixtureValidation:
 
     def test_basic_llm_fixture(self):
         """Validate the basic LLM workflow fixture specifically."""
-        f = DIFY_TEST_FIXTURES / "basic_llm_chat_workflow.yml"
-        if not f.exists():
-            pytest.skip("basic_llm_chat_workflow.yml not found")
+        f = TEST_FIXTURES / "basic_llm_chat_workflow.yml"
+        assert f.exists(), f"Missing fixture: {f.name}"
 
         dsl = load_workflow(f)
         assert dsl.app.name == "llm-simple"
@@ -269,9 +268,8 @@ class TestDifyFixtureValidation:
 
     def test_simple_passthrough_fixture(self):
         """Validate the echo/passthrough workflow fixture."""
-        f = DIFY_TEST_FIXTURES / "simple_passthrough_workflow.yml"
-        if not f.exists():
-            pytest.skip("simple_passthrough_workflow.yml not found")
+        f = TEST_FIXTURES / "simple_passthrough_workflow.yml"
+        assert f.exists(), f"Missing fixture: {f.name}"
 
         dsl = load_workflow(f)
         assert dsl.app.name == "echo"
@@ -280,9 +278,8 @@ class TestDifyFixtureValidation:
 
     def test_conditional_fixture(self):
         """Validate the conditional branching fixture."""
-        f = DIFY_TEST_FIXTURES / "conditional_hello_branching_workflow.yml"
-        if not f.exists():
-            pytest.skip("conditional_hello_branching_workflow.yml not found")
+        f = TEST_FIXTURES / "conditional_hello_branching_workflow.yml"
+        assert f.exists(), f"Missing fixture: {f.name}"
 
         dsl = load_workflow(f)
         assert dsl.app.name == "if-else"
@@ -298,9 +295,8 @@ class TestDifyFixtureValidation:
 
     def test_fixture_roundtrip(self, tmp_path):
         """Load a fixture, export it, reload it, and compare."""
-        f = DIFY_TEST_FIXTURES / "simple_passthrough_workflow.yml"
-        if not f.exists():
-            pytest.skip("simple_passthrough_workflow.yml not found")
+        f = TEST_FIXTURES / "simple_passthrough_workflow.yml"
+        assert f.exists(), f"Missing fixture: {f.name}"
 
         original = load_workflow(f)
         out = tmp_path / "rt.yaml"
@@ -313,9 +309,8 @@ class TestDifyFixtureValidation:
 
     def test_fixture_validate(self):
         """Run validation on real fixtures."""
-        f = DIFY_TEST_FIXTURES / "basic_llm_chat_workflow.yml"
-        if not f.exists():
-            pytest.skip("basic_llm_chat_workflow.yml not found")
+        f = TEST_FIXTURES / "basic_llm_chat_workflow.yml"
+        assert f.exists(), f"Missing fixture: {f.name}"
 
         dsl = load_workflow(f)
         result = validate_workflow(dsl)

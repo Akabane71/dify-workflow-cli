@@ -1,0 +1,176 @@
+version: 0.6.0
+kind: app
+app:
+  name: if-else
+  mode: workflow
+  icon: 🤖
+  icon_type: emoji
+  icon_background: '#FFEAD5'
+  description: ''
+  use_icon_as_answer_icon: false
+workflow:
+  graph:
+    nodes:
+    - id: start_node
+      type: custom
+      data:
+        type: start
+        title: Start
+        desc: ''
+        selected: false
+        variables:
+        - variable: query
+          label: query
+          type: text-input
+          required: true
+          options: []
+          value_selector: []
+      position:
+        x: 30.0
+        y: 263.0
+      positionAbsolute:
+        x: 30.0
+        y: 263.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: ifelse_node
+      type: custom
+      data:
+        type: if-else
+        title: IF/ELSE
+        desc: ''
+        selected: false
+        cases:
+        - id: 'true'
+          case_id: 'true'
+          conditions:
+          - id: cond1
+            comparison_operator: contains
+            value: hello
+            varType: string
+            variable_selector:
+            - start_node
+            - query
+          logical_operator: and
+      position:
+        x: 364.0
+        y: 263.0
+      positionAbsolute:
+        x: 364.0
+        y: 263.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: end_true
+      type: custom
+      data:
+        type: end
+        title: End True
+        desc: ''
+        selected: false
+        outputs:
+        - variable: 'true'
+          value_selector:
+          - start_node
+          - query
+          value_type: string
+      position:
+        x: 766.0
+        y: 161.0
+      positionAbsolute:
+        x: 766.0
+        y: 161.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: end_false
+      type: custom
+      data:
+        type: end
+        title: End False
+        desc: ''
+        selected: false
+        outputs:
+        - variable: 'false'
+          value_selector:
+          - start_node
+          - query
+          value_type: string
+      position:
+        x: 766.0
+        y: 363.0
+      positionAbsolute:
+        x: 766.0
+        y: 363.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    edges:
+    - id: start_node-source-ifelse_node-target
+      source: start_node
+      target: ifelse_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: start
+        targetType: if-else
+        isInIteration: false
+        isInLoop: false
+    - id: ifelse_node-true-end_true-target
+      source: ifelse_node
+      target: end_true
+      sourceHandle: 'true'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: if-else
+        targetType: end
+        isInIteration: false
+        isInLoop: false
+    - id: ifelse_node-false-end_false-target
+      source: ifelse_node
+      target: end_false
+      sourceHandle: 'false'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: if-else
+        targetType: end
+        isInIteration: false
+        isInLoop: false
+    viewport:
+      x: 0.0
+      y: 0.0
+      zoom: 1.0
+  features:
+    file_upload:
+      enabled: false
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+  environment_variables: []
+  conversation_variables: []
+  rag_pipeline_variables: []
+dependencies: []
