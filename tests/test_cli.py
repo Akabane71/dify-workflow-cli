@@ -1,6 +1,8 @@
 """CLI integration tests using Click's test runner."""
 
 import json
+import subprocess
+import sys
 import pytest
 from click.testing import CliRunner
 from pathlib import Path
@@ -34,6 +36,16 @@ class TestHelpDiscovery:
         result = runner.invoke(cli, [])
         assert result.exit_code == 0
         assert "QUICK START" in result.output
+
+    def test_root_help_module_subprocess(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "dify_workflow.cli", "--help"],
+            capture_output=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        stdout = result.stdout.decode("utf-8")
+        assert "QUICK START" in stdout
 
     def test_guide_help(self, runner):
         result = runner.invoke(cli, ["guide", "--help"])

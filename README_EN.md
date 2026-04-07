@@ -44,6 +44,32 @@ cd dify-ai-workflow-tools
 pip install -e .
 ```
 
+If you want a one-shot buildable install package:
+
+```bash
+uv run python build_package.py
+pip install dist/dify_ai_workflow_tools-0.1.1-py3-none-any.whl
+```
+
+The script prefers `uv run python -m build` when `uv` is available, and falls
+back to `python -m build` otherwise.
+
+If a local `python` executable is already configured on your machine, you can
+also run:
+
+```bash
+python build_package.py
+```
+
+Legacy tooling is also supported:
+
+```bash
+python setup.py bdist_wheel
+```
+
+If `setuptools` is missing in the current environment, `setup.py` will tell you
+to use `uv run python build_package.py` instead.
+
 Verify installation:
 
 ```bash

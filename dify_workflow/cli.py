@@ -33,6 +33,22 @@ from .io import save_workflow
 from .scanner import scan_dify_project
 
 
+def _configure_stdio() -> None:
+    """Prefer UTF-8 stdio so Click help text works on Windows locales."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8")
+        except ValueError:
+            # Some redirected streams do not allow reconfiguration.
+            pass
+
+
+_configure_stdio()
+
+
 @click.group(cls=OrderedGroup, invoke_without_command=True)
 @click.version_option(version="0.1.0", prog_name="dify-workflow")
 @click.pass_context

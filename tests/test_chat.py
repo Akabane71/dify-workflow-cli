@@ -114,7 +114,7 @@ class TestChatIO:
         dsl = create_chat_app()
         path = tmp_path / "chat.yaml"
         save_workflow(dsl, path)
-        content = path.read_text()
+        content = path.read_text(encoding="utf-8")
         assert "model_config:" in content
         assert "workflow:" not in content  # Config-based apps shouldn't have workflow
 

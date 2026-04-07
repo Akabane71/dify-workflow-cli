@@ -44,6 +44,29 @@ cd dify-ai-workflow-tools
 pip install -e .
 ```
 
+如需一键构建安装包：
+
+```bash
+uv run python build_package.py
+pip install dist/dify_ai_workflow_tools-0.1.1-py3-none-any.whl
+```
+
+脚本会优先使用 `uv run python -m build`，没有 `uv` 时回退到 `python -m build`。
+
+如果本机 `python` 命令可用，也可以直接执行：
+
+```bash
+python build_package.py
+```
+
+也兼容传统方式：
+
+```bash
+python setup.py bdist_wheel
+```
+
+如果当前环境没有 `setuptools`，`setup.py` 会提示改用 `uv run python build_package.py`。
+
 验证安装：
 
 ```bash
