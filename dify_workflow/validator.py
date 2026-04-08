@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .models import AppMode, DifyDSL
+from .models import AppMode, DifyDSL, WORKFLOW_MODES, CONFIG_MODES
 
 
 @dataclass
@@ -60,6 +60,34 @@ def _validate_top_level(dsl: DifyDSL, result: ValidationResult) -> None:
             result.add_error(err.message, field_name=err.field)
         else:
             result.add_warning(err.message, field_name=err.field)
+
+    # Mode ↔ structure consistency
+    _validate_mode_structure_consistency(dsl, result)
+
+
+def _validate_mode_structure_consistency(dsl: DifyDSL, result: ValidationResult) -> None:
+    """Check that the DSL structure matches the declared app mode."""
+    mode = dsl.app.mode
+
+    if mode in WORKFLOW_MODES:
+        # Workflow-based modes must have graph nodes
+        if not dsl.workflow.graph.nodes:
+            result.add_error(
+                f"Mode '{mode}' requires workflow.graph with nodes",
+                field_name="workflow.graph.nodes",
+            )
+        if dsl.model_config_content is not None:
+            result.add_warning(
+                f"Mode '{mode}' should not have model_config section",
+                field_name="model_config",
+            )
+
+    elif mode in CONFIG_MODES:
+        if dsl.model_config_content is None:
+            result.add_error(
+                f"Mode '{mode}' requires model_config section",
+                field_name="model_config",
+            )
 
 
 def validate_workflow(dsl: DifyDSL) -> ValidationResult:

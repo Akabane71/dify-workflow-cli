@@ -17,17 +17,19 @@ tests/
 ├── test_chatflow.py            # Chatflow 模块测试 (8 个)
 ├── test_chat.py                # 聊天助手模块测试 (19 个)
 ├── test_agent.py               # Agent 模块测试 (15 个)
-└── test_completion.py          # 文本生成模块测试 (11 个)
+├── test_completion.py          # 文本生成模块测试 (11 个)
+├── test_model_config_validators.py # model_config 共享校验测试 (60 个)
+└── test_mode_validation_integration.py # 模式校验集成测试 (23 个)
                                 ──────
-                                共 419 个测试
+                                共 513 个测试
 ```
 
 ## 2. 测试通过结果
 
 ```
 ============================= test session starts =============================
-platform win32 -- Python 3.12.10, pytest-9.0.2
-collected 419 items
+platform win32 -- Python 3.12.12, pytest-9.0.2
+collected 513 items
 
 tests/test_agent.py               15 passed
 tests/test_chat.py                19 passed
@@ -40,11 +42,13 @@ tests/test_frontend_validator.py  43 passed
 tests/test_integration.py         19 passed
 tests/test_io.py                  13 passed
 tests/test_layout.py              37 passed
+tests/test_model_config_validators.py  60 passed
+tests/test_mode_validation_integration.py  23 passed
 tests/test_models.py              20 passed
 tests/test_node_data_validator.py 76 passed
 tests/test_validator.py           16 passed
 
-========================= 419 passed in 1.02s =================================
+========================= 513 passed in 5.94s =================================
 ```
 
 ## 3. 核心模块测试覆盖
@@ -233,6 +237,27 @@ class TestDifyFixtureValidation:
 | TestCompletionIO | completion YAML round-trip |
 | TestCompletionValidation | 合法 completion、无 prompt 警告、缺 config 报错、无 user_input 警告 |
 
+### test_model_config_validators.py — model_config 共享校验 (60 个)
+
+| 测试类 | 覆盖内容 |
+|--------|---------|
+| TestModelValidator | model 缺失/非 dict、provider/name/mode 空、completion_params 类型、stop 超限 (9 个) |
+| TestVariablesValidator | 非列表、非法 type key、label 缺失、variable 正则、max_length 超限、重复 variable、select options/default (15 个) |
+| TestPromptValidator | prompt_type 枚举、pre_prompt 空、chat_prompt_config 消息数/role、completion_prompt_config (12 个) |
+| TestDatasetValidator | retrieval_model 枚举、dataset_ids UUID、completion 模式 query_variable、空配置 (8 个) |
+| TestAgentModeValidator | enabled 类型、strategy 枚举、tools 列表/dict、tool 字段必填、tool_parameters 类型、legacy 跳过 (10 个) |
+| TestFeaturesValidator | enabled 非 bool、sensitive_word_avoidance type、模式特定功能警告 (6 个) |
+
+### test_mode_validation_integration.py — 模式校验集成 (23 个)
+
+| 测试类 | 覆盖内容 |
+|--------|---------|
+| TestValidFixtures | chat/agent/completion 有效 YAML fixture 通过校验 (3 个) |
+| TestModeStructureConsistency | config 模式缺 model_config 报错、workflow 含 model_config 警告 (2 个) |
+| TestChatValidation | model provider 缺失、prompt_type 非法、variable 格式、agent 启用警告、stop 超限 (5 个) |
+| TestAgentValidation | 有效 agent、disabled 报错、无 tools 警告、strategy 非法、tool 字段缺失、strategy 全覆盖 (6 个) |
+| TestCompletionValidation | 有效 completion、opening_statement/SQA/STT 警告、dataset_query_variable、无 user_input_form 警告 (7 个) |
+
 ## 7. 未覆盖的边界
 
 | 场景 | 原因 |
@@ -256,8 +281,11 @@ python -m pytest tests/test_models.py tests/test_editor.py tests/test_validator.
 # 仅新增模式测试
 python -m pytest tests/test_chatflow.py tests/test_chat.py tests/test_agent.py tests/test_completion.py -v
 
+# 仅 model_config 校验测试
+python -m pytest tests/test_model_config_validators.py tests/test_mode_validation_integration.py -v
+
 # 仅集成测试
-python -m pytest tests/test_integration.py -v
+python -m pytest tests/test_integration.py tests/test_mode_validation_integration.py -v
 
 # 仅 CLI 测试
 python -m pytest tests/test_cli.py -v

@@ -239,15 +239,22 @@ dify_workflow/
 ├── chatflow/                # Chatflow 模式 (mode=advanced-chat)
 │   ├── editor.py            #   模板创建：chatflow / knowledge
 │   └── validator.py         #   chatflow 校验：Answer 节点、LLM memory
+├── model_config_validators/ # 共享 model_config 校验（对齐 Dify ConfigManager 链）
+│   ├── model_validator.py       # model 配置校验（provider/name/mode/stop）
+│   ├── variables_validator.py   # user_input_form 校验（类型/label/variable 正则/唯一性）
+│   ├── prompt_validator.py      # prompt_type + prompt_config 校验
+│   ├── dataset_validator.py     # dataset_configs 校验（retrieval_model/UUID/query_variable）
+│   ├── agent_mode_validator.py  # agent_mode 校验（enabled/strategy/tools/tool_parameters）
+│   └── features_validator.py    # Features 校验（TTS/STT/开场白/敏感词等）
 ├── chat/                    # 聊天助手模式 (mode=chat)
 │   ├── editor.py            #   model_config 编辑：set_model / set_prompt / add_variable 等
-│   └── validator.py         #   model / prompt 校验
+│   └── validator.py         #   共享校验链 + chat 专属规则
 ├── agent/                   # Agent 模式 (mode=agent-chat)
 │   ├── editor.py            #   Agent 配置：strategy / add_tool / remove_tool
-│   └── validator.py         #   agent_mode / strategy / tools 校验
+│   └── validator.py         #   共享校验链 + agent_mode/strategy/tools 校验
 └── completion/              # 文本生成模式 (mode=completion)
     ├── editor.py            #   completion 配置：enable_more_like_this
-    └── validator.py         #   prompt / user_input_form 校验
+    └── validator.py         #   共享校验链 + dataset_query_variable/features 校验
 ```
 
 ## 技术选型
@@ -260,7 +267,7 @@ dify_workflow/
 | YAML | PyYAML | Dify 原生格式 |
 | 输出美化 | Rich | 树形结构、表格、彩色输出 |
 | DSL 版本 | Dify v0.6.0 | 对齐最新版 DSL 格式 |
-| 测试 | pytest | 419 个测试全部通过 |
+| 测试 | pytest | 513 个测试全部通过 |
 
 ---
 
@@ -268,13 +275,14 @@ dify_workflow/
 
 校验层从上到下依次执行，对齐 Dify 官方前端+后端的完整校验链路：
 
-| 校验层 | 命令 | 说明 |
-|--------|------|------|
-| **图结构校验** | `validate` | Start 节点存在、边合法性、环检测 (DFS 3-color，对齐前端 `getCycleEdges`) |
-| **节点数据校验** | `validate` | 25 种节点类型的字段级校验 (对齐 graphon 节点 schema) |
-| **前端兼容校验** | `validate` | human-input UUID 格式、枚举值等 (防止导入后前端崩溃) |
-| **连通性校验** | `validate` | Start 为根的 BFS 可达性 (含 Iteration/Loop 子节点) |
-| **Pre-publish 清单** | `checklist` | 对齐 Dify 前端 `use-checklist.ts` 三层检查：节点配置完整性、上游变量引用有效性、所有节点可达 |
+| 校验层 | 命令 | 适用模式 | 说明 |
+|--------|------|---------|------|
+| **图结构校验** | `validate` | workflow, chatflow | Start 节点存在、边合法性、环检测 (DFS 3-color，对齐前端 `getCycleEdges`) |
+| **节点数据校验** | `validate` | workflow, chatflow | 25 种节点类型的字段级校验 (对齐 graphon 节点 schema) |
+| **前端兼容校验** | `validate` | workflow, chatflow | human-input UUID 格式、枚举值等 (防止导入后前端崩溃) |
+| **连通性校验** | `validate` | workflow, chatflow | Start 为根的 BFS 可达性 (含 Iteration/Loop 子节点) |
+| **model_config 校验** | `validate` | chat, agent, completion | 6 个共享校验模块 (model/variables/prompt/dataset/agent_mode/features) + 模式专属规则 |
+| **Pre-publish 清单** | `checklist` | workflow, chatflow | 对齐 Dify 前端 `use-checklist.ts` 三层检查：节点配置完整性、上游变量引用有效性、所有节点可达 |
 
 > Dify 前端在加载 DSL 时会运行环检测算法 (`getCycleEdges`)，移除环上所有边。
 > 本工具的 `validate` 命令会提前检测环并报错，避免导入后节点断连。
@@ -289,17 +297,19 @@ python -m pytest tests/ -v
 
 # 快速摘要
 python -m pytest tests/ -q
-# 419 passed
+# 513 passed
 ```
 
 | 文件 | 数量 | 覆盖范围 |
 |------|------|--------|
 | test_node_data_validator.py | 76 | 25 种节点类型字段级校验 |
+| test_model_config_validators.py | 60 | model_config 6 个共享校验模块 |
 | test_editor.py | 49 | 节点/边增删改、模板创建 |
 | test_checklist_validator.py | 47 | Pre-publish 清单（变量引用、连通性） |
 | test_cli.py | 46 | CLI 全部命令端到端测试 |
 | test_frontend_validator.py | 43 | 前端兼容性校验 |
 | test_layout.py | 37 | 5 种布局策略 + 节点不重叠 |
+| test_mode_validation_integration.py | 23 | 模式校验集成（chat/agent/completion） |
 | test_models.py | 20 | 数据模型、枚举、序列化 |
 | test_chat.py | 19 | 聊天助手创建/编辑/IO/校验 |
 | test_integration.py | 19 | 端到端场景、Dify fixture 真实校验 |
@@ -308,7 +318,7 @@ python -m pytest tests/ -q
 | test_io.py | 13 | YAML/JSON 读写、round-trip |
 | test_completion.py | 11 | 文本生成创建/编辑/IO/校验 |
 | test_chatflow.py | 8 | Chatflow 创建与校验 |
-| **合计** | **419** | |
+| **合计** | **516** | |
 
 ---
 
@@ -327,6 +337,43 @@ python -m pytest tests/ -q
 | [docs/analysis-data-structures.md](docs/analysis-data-structures.md) | 核心数据结构分析 |
 | [docs/dify-dsl研究/](docs/dify-dsl研究/) | 5 种应用类型对比研究 |
 | [docs/examples/](docs/examples/) | 示例工作流说明文档 |
+
+---
+
+## Copilot Skill
+
+本项目包含 **Copilot Custom Skill** 配置，安装后 Copilot 可直接调用 `dify-workflow` CLI 进行工作流编排。
+
+### 功能
+
+- 通过自然语言描述创建 Dify 工作流、Chatflow、Chat、Agent、Completion 应用
+- 自动添加节点/边、配置节点数据、校验并布局
+- 支持 Windows PowerShell（自动使用 `--data-file` 避免 JSON 转义问题）
+- 内置节点配置模板（LLM、HTTP Request、Question Classifier 等）
+
+### 文件结构
+
+```
+.github/skills/dify-workflow/
+├── SKILL.md                 # Skill 入口（Copilot 读取此文件）
+├── assets/                  # 节点配置模板 JSON
+├── references/              # 命令参考、节点类型、常用模式
+│   ├── commands.md          # 完整命令参考
+│   ├── node-types.md        # 22 种节点类型及数据 schema
+│   └── patterns.md          # 常用工作流模式和 PowerShell 示例
+└── scripts/                 # 安装脚本
+    ├── install.ps1          # Windows PowerShell 安装
+    └── install.sh           # macOS/Linux 安装
+```
+
+### 使用方式
+
+在 VS Code 中通过 Copilot Chat 调用，例如：
+
+- "创建一个翻译工作流，输入英文输出中文"
+- "给这个 workflow 添加一个 IF/ELSE 节点来判断语言"
+- "校验 my_workflow.yaml 是否可以导入 Dify"
+- "用 Mermaid 图展示这个工作流的结构"
 
 ## 示例
 

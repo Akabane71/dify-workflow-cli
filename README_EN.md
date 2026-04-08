@@ -242,15 +242,22 @@ dify_workflow/
 ├── chatflow/                # Chatflow mode (mode=advanced-chat)
 │   ├── editor.py            #   Template creation: chatflow / knowledge
 │   └── validator.py         #   Chatflow validation: Answer node, LLM memory
+├── model_config_validators/ # Shared model_config validation (aligned with Dify ConfigManager chain)
+│   ├── model_validator.py       # Model config validation (provider/name/mode/stop)
+│   ├── variables_validator.py   # user_input_form validation (type/label/variable regex/uniqueness)
+│   ├── prompt_validator.py      # prompt_type + prompt_config validation
+│   ├── dataset_validator.py     # dataset_configs validation (retrieval_model/UUID/query_variable)
+│   ├── agent_mode_validator.py  # agent_mode validation (enabled/strategy/tools/tool_parameters)
+│   └── features_validator.py    # Features validation (TTS/STT/opening/sensitive words, etc.)
 ├── chat/                    # Chat assistant mode (mode=chat)
 │   ├── editor.py            #   model_config editing: set_model / set_prompt / add_variable, etc.
-│   └── validator.py         #   model / prompt validation
+│   └── validator.py         #   Shared validation chain + chat-specific rules
 ├── agent/                   # Agent mode (mode=agent-chat)
 │   ├── editor.py            #   Agent config: strategy / add_tool / remove_tool
-│   └── validator.py         #   agent_mode / strategy / tools validation
+│   └── validator.py         #   Shared validation chain + agent_mode/strategy/tools validation
 └── completion/              # Text generation mode (mode=completion)
     ├── editor.py            #   completion config: enable_more_like_this
-    └── validator.py         #   prompt / user_input_form validation
+    └── validator.py         #   Shared validation chain + dataset_query_variable/features validation
 ```
 
 ## Technology Choices
@@ -263,7 +270,7 @@ dify_workflow/
 | YAML | PyYAML | Native Dify format |
 | Output formatting | Rich | Tree view, tables, colored output |
 | DSL version | Dify v0.6.0 | Tracks the latest DSL format |
-| Testing | pytest | 419 tests passing |
+| Testing | pytest | 513 tests passing |
 
 ---
 
@@ -271,13 +278,14 @@ dify_workflow/
 
 Validation runs from top to bottom, aligned with Dify frontend + backend behavior:
 
-| Validation Layer | Command | Description |
-|--------|------|------|
-| **Graph structure validation** | `validate` | Start node existence, edge legality, cycle detection (DFS 3-color, aligned with frontend `getCycleEdges`) |
-| **Node data validation** | `validate` | Field-level validation for 25 node types (aligned with graph node schemas) |
-| **Frontend compatibility validation** | `validate` | UUID format for human-input, enum values, and similar constraints to prevent frontend crashes |
-| **Connectivity validation** | `validate` | BFS reachability from Start, including Iteration/Loop subnodes |
-| **Pre-publish checklist** | `checklist` | Mirrors Dify frontend `use-checklist.ts`: node completeness, upstream variable references, and reachability |
+| Validation Layer | Command | Applicable Modes | Description |
+|--------|------|---------|------|
+| **Graph structure validation** | `validate` | workflow, chatflow | Start node existence, edge legality, cycle detection (DFS 3-color, aligned with frontend `getCycleEdges`) |
+| **Node data validation** | `validate` | workflow, chatflow | Field-level validation for 25 node types (aligned with graph node schemas) |
+| **Frontend compatibility validation** | `validate` | workflow, chatflow | UUID format for human-input, enum values, and similar constraints to prevent frontend crashes |
+| **Connectivity validation** | `validate` | workflow, chatflow | BFS reachability from Start, including Iteration/Loop subnodes |
+| **model_config validation** | `validate` | chat, agent, completion | 6 shared validator modules (model/variables/prompt/dataset/agent_mode/features) + mode-specific rules |
+| **Pre-publish checklist** | `checklist` | workflow, chatflow | Mirrors Dify frontend `use-checklist.ts`: node completeness, upstream variable references, and reachability |
 
 > When Dify frontend loads a DSL file, it runs cycle detection (`getCycleEdges`) and removes all edges on detected cycles.
 > This tool fails early during `validate` so you do not import a graph that becomes disconnected after Dify cleans the cycle.
@@ -292,17 +300,19 @@ python -m pytest tests/ -v
 
 # Quick summary
 python -m pytest tests/ -q
-# 419 passed
+# 513 passed
 ```
 
 | File | Count | Coverage |
 |------|------|--------|
 | test_node_data_validator.py | 76 | Field-level validation for 25 node types |
+| test_model_config_validators.py | 60 | model_config 6 shared validator modules |
 | test_editor.py | 49 | Node/edge operations and template creation |
 | test_checklist_validator.py | 47 | Pre-publish checklist (variable references, connectivity) |
 | test_cli.py | 46 | End-to-end coverage for all CLI commands |
 | test_frontend_validator.py | 43 | Frontend compatibility validation |
 | test_layout.py | 37 | Five layout strategies + node non-overlap |
+| test_mode_validation_integration.py | 23 | Mode validation integration (chat/agent/completion) |
 | test_models.py | 20 | Data models, enums, serialization |
 | test_chat.py | 19 | Chat assistant creation, editing, I/O, validation |
 | test_integration.py | 19 | End-to-end scenarios with real Dify fixtures |
@@ -311,7 +321,7 @@ python -m pytest tests/ -q
 | test_io.py | 13 | YAML/JSON I/O and round-trip |
 | test_completion.py | 11 | Text generation creation, editing, I/O, validation |
 | test_chatflow.py | 8 | Chatflow creation and validation |
-| **Total** | **419** | |
+| **Total** | **513** | |
 
 ---
 
@@ -330,6 +340,43 @@ python -m pytest tests/ -q
 | [docs/analysis-data-structures.md](docs/analysis-data-structures.md) | Core data structure analysis |
 | [docs/dify-dsl研究/](docs/dify-dsl研究/) | Comparative research across all 5 application types |
 | [docs/examples/](docs/examples/) | Example workflow documentation |
+
+---
+
+## Copilot Skill
+
+This project ships a **Copilot Custom Skill** so that Copilot can directly orchestrate Dify workflows through the `dify-workflow` CLI.
+
+### Capabilities
+
+- Create Dify Workflow, Chatflow, Chat, Agent, and Completion apps from natural language
+- Automatically add nodes/edges, configure node data, validate, and layout
+- Windows PowerShell support (auto-uses `--data-file` to avoid JSON escaping issues)
+- Built-in node config templates (LLM, HTTP Request, Question Classifier, etc.)
+
+### File Structure
+
+```
+.github/skills/dify-workflow/
+├── SKILL.md                 # Skill entry point (read by Copilot)
+├── assets/                  # Node configuration JSON templates
+├── references/              # Command reference, node types, common patterns
+│   ├── commands.md          # Full command reference
+│   ├── node-types.md        # 22 node types and their data schemas
+│   └── patterns.md          # Common workflow patterns and PowerShell examples
+└── scripts/                 # Install scripts
+    ├── install.ps1          # Windows PowerShell install
+    └── install.sh           # macOS/Linux install
+```
+
+### Usage
+
+Invoke via Copilot Chat in VS Code, for example:
+
+- "Create a translation workflow that takes English input and outputs Chinese"
+- "Add an IF/ELSE node to this workflow to detect language"
+- "Validate my_workflow.yaml for Dify import"
+- "Show the structure of this workflow as a Mermaid diagram"
 
 ## Examples
 

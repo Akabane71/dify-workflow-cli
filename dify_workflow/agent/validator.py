@@ -1,49 +1,61 @@
-"""Agent-specific validation rules."""
+"""Agent-specific validation rules.
+
+Calls shared model_config validators (model, variables, prompt, dataset, features, agent_mode)
+then applies agent-specific checks (enabled must be true, tools should be present).
+"""
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from ..models import DifyDSL
 
+if TYPE_CHECKING:
+    from ..validator import ValidationResult
 
-def validate_agent_mode(dsl: DifyDSL, result) -> None:
+
+def _to_raw(dsl: DifyDSL) -> dict:
+    """Convert ModelConfigContent to a raw dict for shared validators."""
+    return dsl.model_config_content.model_dump(by_alias=True)  # type: ignore[union-attr]
+
+
+def validate_agent_mode(dsl: DifyDSL, result: ValidationResult) -> None:
     """Validate agent-specific rules."""
     config = dsl.model_config_content
     if config is None:
         result.add_error("Agent app missing model_config section")
         return
 
-    # Model configuration
-    model = config.model
-    if not model:
-        result.add_error("Agent app missing model configuration", field_name="model_config.model")
-    elif not model.get("provider") or not model.get("name"):
-        result.add_error(
-            "Agent app model must specify provider and name",
-            field_name="model_config.model",
-        )
+    raw = _to_raw(dsl)
 
-    # Agent mode must be enabled
-    agent_mode = config.agent_mode
-    if not isinstance(agent_mode, dict):
+    # --- Shared validators (aligned with Dify's ConfigManager chain) ---
+    from ..model_config_validators.model_validator import validate_model
+    from ..model_config_validators.variables_validator import validate_user_input_form
+    from ..model_config_validators.prompt_validator import validate_prompt
+    from ..model_config_validators.agent_mode_validator import validate_agent_mode as validate_agent_mode_fields
+    from ..model_config_validators.dataset_validator import validate_dataset_configs
+    from ..model_config_validators.features_validator import validate_features
+
+    validate_model(raw, result)
+    validate_user_input_form(raw, result)
+    validate_prompt(raw, result)
+    validate_agent_mode_fields(raw, result)
+    validate_dataset_configs(raw, result, is_completion=False)
+    validate_features(raw, result, app_mode="agent-chat")
+
+    # --- Agent-specific rules ---
+    agent_mode_cfg = config.agent_mode
+
+    if not isinstance(agent_mode_cfg, dict):
         result.add_error("Agent app missing agent_mode configuration")
         return
 
-    if not agent_mode.get("enabled"):
-        result.add_error("Agent app must have agent_mode.enabled=true")
-
-    # Strategy validation
-    strategy = agent_mode.get("strategy", "")
-    if strategy not in ("function_call", "react"):
+    if not agent_mode_cfg.get("enabled"):
         result.add_error(
-            f"Agent strategy must be 'function_call' or 'react', got '{strategy}'",
-            field_name="model_config.agent_mode.strategy",
+            "Agent app has agent_mode.enabled=false — must be enabled for agent mode"
         )
 
-    # Tools check
-    tools = agent_mode.get("tools", [])
+    # Tools should be present for an agent to be useful
+    tools = agent_mode_cfg.get("tools", [])
     if not tools:
         result.add_warning("Agent app has no tools configured")
-
-    # Pre-prompt recommended
-    if not config.pre_prompt:
-        result.add_warning("Agent app has no system prompt (pre_prompt)")

@@ -9,6 +9,7 @@ from dify_workflow.models import (
     EdgeData,
     Features,
     Graph,
+    ModelConfigContent,
     Node,
     NodeData,
     NodeType,
@@ -158,3 +159,16 @@ class TestDifyWorkflowDSL:
         dsl2 = DifyWorkflowDSL.model_validate(data)
         assert dsl2.app.name == "Test"
         assert dsl2.version == "0.6.0"
+
+
+class TestModelConfigContent:
+    def test_prompt_config_defaults_are_frontend_safe(self):
+        config = ModelConfigContent()
+        assert config.chat_prompt_config == {"prompt": []}
+        assert config.completion_prompt_config == {
+            "prompt": {"text": ""},
+            "conversation_histories_role": {
+                "user_prefix": "",
+                "assistant_prefix": "",
+            },
+        }

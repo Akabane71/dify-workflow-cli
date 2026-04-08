@@ -1,0 +1,499 @@
+version: 0.6.0
+kind: app
+app:
+  name: 售后咨询分流
+  mode: advanced-chat
+  icon: 🤖
+  icon_type: emoji
+  icon_background: '#FFEAD5'
+  description: 模拟电商售后问答与分流的 chatflow
+  use_icon_as_answer_icon: false
+workflow:
+  graph:
+    nodes:
+    - id: start_node
+      type: custom
+      data:
+        type: start
+        title: 用户售后问题
+        desc: ''
+        selected: false
+        variables:
+        - variable: query
+          label: 请输入售后问题
+          type: paragraph
+          required: true
+          options: []
+          value_selector: []
+      position:
+        x: 30.0
+        y: 245.0
+      positionAbsolute:
+        x: 30.0
+        y: 245.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: llm_node
+      type: custom
+      data:
+        type: llm
+        title: 复杂售后转人工
+        desc: ''
+        selected: false
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.2
+        prompt_template:
+        - role: system
+          text: 你是电商平台高级售后协调专员。用于处理发票、保修、价格保护、投诉升级和无法明确归类的复杂售后问题。请用中文回复：先概括用户问题；再说明需要补充的关键信息；然后给出转人工或升级处理建议，并说明会由对应专员继续跟进；不要虚构已完成的处理动作。回复控制在
+            4 到 6 行。
+        - role: user
+          text: '{{#start_node.query#}}'
+        vision:
+          enabled: false
+          configs:
+            variable_selector: []
+        memory:
+          enabled: true
+          window:
+            enabled: true
+            size: 10
+        context:
+          enabled: false
+          variable_selector: []
+        structured_output:
+          enabled: false
+        retry_config:
+          enabled: false
+          max_retries: 1
+          retry_interval: 1000
+          exponential_backoff:
+            enabled: false
+            multiplier: 2
+            max_interval: 10000
+      position:
+        x: 718.0
+        y: 425.0
+      positionAbsolute:
+        x: 718.0
+        y: 425.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: answer_node
+      type: custom
+      data:
+        type: answer
+        title: 复杂售后答复
+        desc: ''
+        selected: false
+        variables: []
+        answer: '{{#llm_node.text#}}'
+      position:
+        x: 1062.0
+        y: 425.0
+      positionAbsolute:
+        x: 1062.0
+        y: 425.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: aftersales_classifier
+      type: custom
+      data:
+        type: question-classifier
+        title: 售后问题分类
+        desc: ''
+        selected: false
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.1
+        vision:
+          enabled: false
+          configs:
+            variable_selector: []
+        query_variable_selector:
+        - start_node
+        - query
+        classes:
+        - id: refund_return
+          name: 退款退货
+        - id: logistics
+          name: 物流催件
+        - id: quality_issue
+          name: 质量问题
+        - id: manual_service
+          name: 人工处理
+        instruction: 你是售后分流分类器。只能从 4 个类别中选择 1 个。退款退货：退款、退货、拒收、仅退款、七天无理由。物流催件：未发货、发货慢、物流停滞、签收异常、催派送。质量问题：商品破损、少件、错发、功能故障、与描述不符。人工处理：发票、保修、价格保护、补偿争议、投诉升级、无法明确归类的问题。优先按用户核心诉求分类。
+      position:
+        x: 374.0
+        y: 245.0
+      positionAbsolute:
+        x: 374.0
+        y: 245.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: refund_llm
+      type: custom
+      data:
+        type: llm
+        title: 退款退货专员
+        desc: ''
+        selected: false
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.3
+        prompt_template:
+        - role: system
+          text: 你是电商平台售后退款与退货专员。请用中文回复，并遵守以下要求：先用一句话确认用户诉求；再列出处理所需信息，至少包含订单号、商品名、是否签收、问题描述；然后给出下一步建议，例如未发货可尝试拦截退款、已签收通常走退货退款、质量问题可补充凭证后优先处理；如果信息不足，不要编造处理结果，要明确提示用户补充。回复控制在
+            4 到 6 行，专业且清晰。
+        - role: user
+          text: '{{#start_node.query#}}'
+        vision:
+          enabled: false
+          configs:
+            variable_selector: []
+        memory:
+          enabled: true
+          window:
+            enabled: true
+            size: 10
+        context:
+          enabled: false
+          variable_selector: []
+        structured_output:
+          enabled: false
+        retry_config:
+          enabled: false
+          max_retries: 1
+          retry_interval: 1000
+          exponential_backoff:
+            enabled: false
+            multiplier: 2
+            max_interval: 10000
+      position:
+        x: 718.0
+        y: 65.0
+      positionAbsolute:
+        x: 718.0
+        y: 65.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: refund_answer
+      type: custom
+      data:
+        type: answer
+        title: 退款退货答复
+        desc: ''
+        selected: false
+        variables: []
+        answer: '{{#refund_llm.text#}}'
+      position:
+        x: 1062.0
+        y: 65.0
+      positionAbsolute:
+        x: 1062.0
+        y: 65.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: logistics_llm
+      type: custom
+      data:
+        type: llm
+        title: 物流催件专员
+        desc: ''
+        selected: false
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.3
+        prompt_template:
+        - role: system
+          text: 你是电商平台物流售后专员。请用中文回复，并遵守以下要求：先确认用户的物流诉求；再让用户补充订单号、最新物流节点、收货城市；然后给出可执行建议，例如未出库时可催仓、已出库未更新时可发起催件、签收异常时可核对代收或驿站；如果已经超出承诺时效，可以说明会升级物流排查，但不要虚构具体物流结果。回复控制在
+            4 到 6 行，语气专业。
+        - role: user
+          text: '{{#start_node.query#}}'
+        vision:
+          enabled: false
+          configs:
+            variable_selector: []
+        memory:
+          enabled: true
+          window:
+            enabled: true
+            size: 10
+        context:
+          enabled: false
+          variable_selector: []
+        structured_output:
+          enabled: false
+        retry_config:
+          enabled: false
+          max_retries: 1
+          retry_interval: 1000
+          exponential_backoff:
+            enabled: false
+            multiplier: 2
+            max_interval: 10000
+      position:
+        x: 718.0
+        y: 185.0
+      positionAbsolute:
+        x: 718.0
+        y: 185.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: logistics_answer
+      type: custom
+      data:
+        type: answer
+        title: 物流催件答复
+        desc: ''
+        selected: false
+        variables: []
+        answer: '{{#logistics_llm.text#}}'
+      position:
+        x: 1062.0
+        y: 185.0
+      positionAbsolute:
+        x: 1062.0
+        y: 185.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: quality_llm
+      type: custom
+      data:
+        type: llm
+        title: 质量问题专员
+        desc: ''
+        selected: false
+        model:
+          provider: openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.3
+        prompt_template:
+        - role: system
+          text: 你是电商平台商品质量问题专员。请用中文回复，并遵守以下要求：先确认用户反馈的是破损、少件、错发、故障或与描述不符中的哪一类；然后要求用户补充订单号、商品名、问题照片或视频、签收时间；再给出处理建议，例如补发、换货、退货退款或进一步质检；不要承诺未经核实的赔付结果。回复控制在
+            4 到 6 行，结构清晰。
+        - role: user
+          text: '{{#start_node.query#}}'
+        vision:
+          enabled: false
+          configs:
+            variable_selector: []
+        memory:
+          enabled: true
+          window:
+            enabled: true
+            size: 10
+        context:
+          enabled: false
+          variable_selector: []
+        structured_output:
+          enabled: false
+        retry_config:
+          enabled: false
+          max_retries: 1
+          retry_interval: 1000
+          exponential_backoff:
+            enabled: false
+            multiplier: 2
+            max_interval: 10000
+      position:
+        x: 718.0
+        y: 305.0
+      positionAbsolute:
+        x: 718.0
+        y: 305.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    - id: quality_answer
+      type: custom
+      data:
+        type: answer
+        title: 质量问题答复
+        desc: ''
+        selected: false
+        variables: []
+        answer: '{{#quality_llm.text#}}'
+      position:
+        x: 1062.0
+        y: 305.0
+      positionAbsolute:
+        x: 1062.0
+        y: 305.0
+      width: 244
+      height: 90
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+    edges:
+    - id: llm_node-source-answer_node-target
+      source: llm_node
+      target: answer_node
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: llm
+        targetType: answer
+        isInIteration: false
+        isInLoop: false
+    - id: start_node-source-aftersales_classifier-target
+      source: start_node
+      target: aftersales_classifier
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: start
+        targetType: question-classifier
+        isInIteration: false
+        isInLoop: false
+    - id: aftersales_classifier-manual_service-llm_node-target
+      source: aftersales_classifier
+      target: llm_node
+      sourceHandle: manual_service
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: question-classifier
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+    - id: aftersales_classifier-refund_return-refund_llm-target
+      source: aftersales_classifier
+      target: refund_llm
+      sourceHandle: refund_return
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: question-classifier
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+    - id: refund_llm-source-refund_answer-target
+      source: refund_llm
+      target: refund_answer
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: llm
+        targetType: answer
+        isInIteration: false
+        isInLoop: false
+    - id: aftersales_classifier-logistics-logistics_llm-target
+      source: aftersales_classifier
+      target: logistics_llm
+      sourceHandle: logistics
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: question-classifier
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+    - id: logistics_llm-source-logistics_answer-target
+      source: logistics_llm
+      target: logistics_answer
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: llm
+        targetType: answer
+        isInIteration: false
+        isInLoop: false
+    - id: aftersales_classifier-quality_issue-quality_llm-target
+      source: aftersales_classifier
+      target: quality_llm
+      sourceHandle: quality_issue
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: question-classifier
+        targetType: llm
+        isInIteration: false
+        isInLoop: false
+    - id: quality_llm-source-quality_answer-target
+      source: quality_llm
+      target: quality_answer
+      sourceHandle: source
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        sourceType: llm
+        targetType: answer
+        isInIteration: false
+        isInLoop: false
+    viewport:
+      x: 0.0
+      y: 0.0
+      zoom: 1.0
+  features:
+    file_upload:
+      enabled: false
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+  environment_variables: []
+  conversation_variables: []
+  rag_pipeline_variables: []
+dependencies: []
