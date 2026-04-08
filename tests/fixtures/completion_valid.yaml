@@ -1,0 +1,42 @@
+version: "0.6.0"
+kind: app
+app:
+  name: "Test Completion App"
+  mode: completion
+  icon: "🤖"
+  icon_type: emoji
+  icon_background: "#FFEAD5"
+  description: "A test completion app"
+
+model_config:
+  model:
+    provider: openai
+    name: gpt-4o
+    mode: chat
+    completion_params:
+      temperature: 0.7
+      max_tokens: 512
+
+  pre_prompt: "Translate the following text:\n{{query}}"
+  prompt_type: simple
+
+  user_input_form:
+    - paragraph:
+        label: "Text to translate"
+        variable: query
+        required: true
+        default: ""
+
+  text_to_speech:
+    enabled: false
+  more_like_this:
+    enabled: false
+  sensitive_word_avoidance:
+    enabled: false
+  file_upload:
+    enabled: false
+
+  dataset_configs:
+    datasets:
+      datasets: []
+    retrieval_model: single

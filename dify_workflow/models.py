@@ -345,8 +345,16 @@ class ModelConfigContent(BaseModel):
     })
     pre_prompt: str = ""
     prompt_type: str = "simple"
-    chat_prompt_config: dict[str, Any] = Field(default_factory=dict)
-    completion_prompt_config: dict[str, Any] = Field(default_factory=dict)
+    chat_prompt_config: dict[str, Any] = Field(default_factory=lambda: {
+        "prompt": [],
+    })
+    completion_prompt_config: dict[str, Any] = Field(default_factory=lambda: {
+        "prompt": {"text": ""},
+        "conversation_histories_role": {
+            "user_prefix": "",
+            "assistant_prefix": "",
+        },
+    })
     user_input_form: list[dict[str, Any]] = Field(default_factory=list)
     dataset_query_variable: str = ""
     opening_statement: str = ""

@@ -10,6 +10,7 @@ wheels/
 .venv
 
 dify-test
+dify-plugin-sdks
 
 dify_ai_workflow_tools.egg-info
 .pytest_cache/

@@ -31,15 +31,23 @@ dify_workflow/
 ├── chatflow/                # Chatflow 模式 (mode=advanced-chat)
 │   ├── editor.py            #   模板创建：chatflow / knowledge
 │   └── validator.py         #   chatflow 校验：Answer 节点、LLM memory
+├── model_config_validators/ # 共享 model_config 校验模块（对齐 Dify ConfigManager 链）
+│   ├── __init__.py
+│   ├── model_validator.py       # model 配置校验（provider/name/mode/stop）
+│   ├── variables_validator.py   # user_input_form 校验（类型/label/variable 格式/唯一性）
+│   ├── prompt_validator.py      # prompt_type + prompt_config 校验
+│   ├── dataset_validator.py     # dataset_configs 校验（retrieval_model/UUID/query_variable）
+│   ├── agent_mode_validator.py  # agent_mode 校验（enabled/strategy/tools/tool_parameters）
+│   └── features_validator.py    # Features 校验（TTS/STT/开场白/敏感词等）
 ├── chat/                    # 聊天助手模式 (mode=chat)
 │   ├── editor.py            #   model_config 编辑操作
-│   └── validator.py         #   model / prompt 校验
+│   └── validator.py         #   共享校验链 + chat 专属规则
 ├── agent/                   # Agent 模式 (mode=agent-chat)
 │   ├── editor.py            #   Agent 配置：strategy / 工具管理
-│   └── validator.py         #   agent_mode / strategy / tools 校验
+│   └── validator.py         #   共享校验链 + agent_mode/strategy/tools 校验
 └── completion/              # 文本生成模式 (mode=completion)
     ├── editor.py            #   completion 配置
-    └── validator.py         #   prompt / user_input_form 校验
+    └── validator.py         #   共享校验链 + dataset_query_variable/features 校验
 ```
 
 ## 2. 技术选型
@@ -50,7 +58,7 @@ dify_workflow/
 | 数据模型 | Pydantic v2 | 类型安全，ConfigDict，validation_alias/serialization_alias |
 | YAML | PyYAML | 标准库级别，Dify 原生使用 |
 | 输出美化 | Rich | 树形结构、表格、彩色输出 |
-| 测试 | pytest | 行业标准，419 个测试 |
+| 测试 | pytest | 行业标准，513 个测试 |
 | 运行时 | Python 3.12 | 类型提示、match 语法 |
 
 ## 3. 设计原则
@@ -113,9 +121,12 @@ Dify 的 5 种应用模式分为两种底层架构：
 │  mermaid.py — Mermaid 流程图输出                        │
 │  workflow/validator.py — 图结构+环检测+连通性+checklist  │
 │  chatflow/validator.py — Answer 节点 + memory          │
-│  chat/validator.py — model + prompt                    │
-│  agent/validator.py — agent_mode + strategy + tools    │
-│  completion/validator.py — prompt + user_input_form    │
+│  model_config_validators/ — 6 个共享校验模块              │
+│    model / variables / prompt / dataset / agent_mode /  │
+│    features（对齐 Dify ConfigManager 链）                │
+│  chat/validator.py — 共享链 + opening_statement 等      │
+│  agent/validator.py — 共享链 + agent_mode.enabled/tools │
+│  completion/validator.py — 共享链 + query_variable 等   │
 ├──────────────────────────────────────────────────────┤
 │                    I/O Layer                           │
 │  io.py — YAML/JSON 文件读写、模式感知序列化              │
@@ -183,9 +194,9 @@ DifyWorkflowDSL = DifyDSL  # 旧代码使用的别名仍可用
 |------|--------|---------|
 | workflow | `workflow.validator.validate_workflow_mode()` | 顶层字段、图结构、节点规则、边合法性、环检测、连通性、pre-publish 清单 |
 | advanced-chat | `chatflow.validator.validate_chatflow_mode()` | 同 workflow + Answer 节点检查 + memory 建议 |
-| chat | `chat.validator.validate_chat_mode()` | model_config 存在性、model 配置、pre_prompt |
-| agent-chat | `agent.validator.validate_agent_mode()` | agent_mode.enabled、strategy 有效性、tools 检查 |
-| completion | `completion.validator.validate_completion_mode()` | model_config、pre_prompt、user_input_form |
+| chat | `chat.validator.validate_chat_mode()` | 共享校验链（model→variables→prompt→dataset→features） + opening_statement、suggested_questions、agent_mode 启用警告 |
+| agent-chat | `agent.validator.validate_agent_mode()` | 共享校验链 + agent_mode_fields（enabled/strategy/tools/tool_parameters）、enabled 必须为 true、无 tools 警告 |
+| completion | `completion.validator.validate_completion_mode()` | 共享校验链（含 dataset_query_variable 必填）+ opening_statement/SQA/STT 不适用警告、无 user_input_form 警告 |
 
 ### Workflow 模式校验维度（8 维）
 

@@ -1,0 +1,53 @@
+version: "0.6.0"
+kind: app
+app:
+  name: "Test Chat App"
+  mode: chat
+  icon: "🤖"
+  icon_type: emoji
+  icon_background: "#FFEAD5"
+  description: "A test chat app"
+
+model_config:
+  model:
+    provider: openai
+    name: gpt-4o
+    mode: chat
+    completion_params:
+      temperature: 0.7
+      max_tokens: 512
+
+  pre_prompt: "You are a helpful assistant."
+  prompt_type: simple
+
+  user_input_form:
+    - text-input:
+        label: "Query"
+        variable: query
+        required: true
+        default: ""
+
+  opening_statement: "Hello! How can I help you?"
+  suggested_questions:
+    - "What can you do?"
+  suggested_questions_after_answer:
+    enabled: false
+  speech_to_text:
+    enabled: false
+  text_to_speech:
+    enabled: false
+  retriever_resource:
+    enabled: false
+  sensitive_word_avoidance:
+    enabled: false
+  file_upload:
+    enabled: false
+
+  dataset_configs:
+    datasets:
+      datasets: []
+    retrieval_model: single
+
+  agent_mode:
+    enabled: false
+    tools: []

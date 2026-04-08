@@ -13,6 +13,7 @@
 | **运行时校验** | 节点构造时 (graphon `Node.validate_node_data()`) | 每种节点的 Pydantic model_validate | ✅ 等效覆盖 |
 | **前端渲染校验** | 前端 React 组件渲染时 (`nodes/*/node.tsx`, `initialNodes()`) | 组件直接解构 node.data 属性，缺失即白屏 | ✅ `frontend_validator.py` |
 | **发布检查清单** | 前端 `use-checklist.ts` hook | 节点配置完整性 + 变量引用有效性 | ✅ `checklist_validator.py` |
+| **model_config 校验** | 各 ConfigManager 链 (`ModelConfigManager` 等) | chat/agent/completion 模式的 model_config 字段 | ✅ `model_config_validators/` |
 
 ### CLI 额外提供（Dify 不检查的）
 
@@ -181,6 +182,40 @@ loop_variables[].var_type → string/number/object/boolean/array[string]/array[n
 
 ---
 
+## 4.7 model_config 校验（chat / agent-chat / completion 模式）
+
+chat / agent-chat / completion 三种模式不使用 graph，而是基于 `model_config` 配置。
+CLI 通过 `model_config_validators/` 包提供 6 个共享校验模块，对齐 Dify 后端 ConfigManager 链。
+
+### 共享校验模块
+
+| 模块 | 对应 Dify ConfigManager | 校验内容 |
+|------|------------------------|---------|
+| `model_validator.py` | `ModelConfigManager` | model 必须为 dict，provider/name/mode 非空，completion_params 为 dict，stop ≤ 4 项 |
+| `variables_validator.py` | `UserInputFormConfigManager` | user_input_form 类型校验、label 必填、variable 正则 `^(?!\d)[\w\u4e00-\u9fff…]+$`、max_length ≤ 100、唯一性、select options/default |
+| `prompt_validator.py` | `PromptTemplateConfigManager` | prompt_type 枚举 (simple/advanced)、pre_prompt 非空、chat_prompt_config ≤ 10 条消息、role 校验 |
+| `dataset_validator.py` | `DatasetConfigManager` | retrieval_model 枚举、dataset_ids UUID 格式、completion 模式 dataset_query_variable 必填 |
+| `agent_mode_validator.py` | `AgentChatAppConfigManager` | enabled 为 bool、strategy 枚举 (router/react-router/react/function_call)、tool 字段必填、tool_parameters 为 dict |
+| `features_validator.py` | `FileUploadConfigManager` 等 | feature enabled 为 bool、sensitive_word_avoidance type 必填、模式相关功能适用性警告 |
+
+### 模式专属校验
+
+| 模式 | 校验器 | 额外规则 |
+|------|--------|---------|
+| **chat** | `chat/validator.py` | opening_statement 类型、suggested_questions 类型、agent_mode 启用时警告 |
+| **agent-chat** | `agent/validator.py` | agent_mode.enabled 必须为 true、无 tools 时警告 |
+| **completion** | `completion/validator.py` | dataset_query_variable 必填、opening_statement/SQA/STT 不适用警告、无 user_input_form 警告 |
+
+### 顶层一致性检查 (validator.py)
+
+| 检查项 | 说明 |
+|--------|------|
+| workflow/chatflow 需要 graph | `workflow.nodes` 非空 |
+| workflow/chatflow 有 model_config 时警告 | 冗余字段 |
+| chat/agent/completion 需要 model_config | 缺失即报错 |
+
+---
+
 ## 5. 不覆盖项及原因
 
 以下检查项属于 Dify 服务端专属功能，CLI 作为独立本地工具无需实现：
@@ -194,7 +229,6 @@ loop_variables[].var_type → string/number/object/boolean/array[string]/array[n
 | Billboard 节点数限制 | 计费系统限制 |
 | 覆盖导入目标 app 类型检查 | 服务端 API 限制 |
 | URL 导入大小限制 | 服务端网络限制 |
-| Features ConfigManager 校验 | 依赖运行时 ConfigManager 类链 |
 | PluginDependency model_validate | 绝大多数 DSL 无 dependencies |
 
 ---
@@ -276,3 +310,24 @@ CLI 通过 `frontend_validator.py` 模块在生成阶段拦截这些问题。
 | TestFeSafeNodes | 4 | end/answer/http-request/knowledge-retrieval 无错误 |
 | TestFeUnregisteredNodes | 3 | template-transform/document-extractor/agent 无错误 |
 | TestFeIterationNode | 3 | is_parallel 非布尔警告、布尔合法、loop 空返回 |
+
+### model_config 校验（`tests/test_model_config_validators.py`，60 个测试）
+
+| 测试类 | 数量 | 覆盖内容 |
+|--------|------|---------|
+| TestModelValidator | 9 | model 缺失/非 dict、provider/name/mode 空、completion_params 类型、stop 超限 |
+| TestVariablesValidator | 15 | 非列表、非法 type key、label 缺失、variable 格式、max_length 超限、重复 variable、select 选项/default |
+| TestPromptValidator | 12 | prompt_type 枚举、pre_prompt 空、chat_prompt_config 消息数/role、completion_prompt_config |
+| TestDatasetValidator | 8 | retrieval_model 枚举、dataset_ids UUID、completion 模式 query_variable、空配置 |
+| TestAgentModeValidator | 10 | enabled 类型、strategy 枚举、tools 列表/dict、tool 字段必填、tool_parameters 类型、legacy 跳过 |
+| TestFeaturesValidator | 6 | enabled 非 bool、sensitive_word_avoidance type、模式特定功能警告 |
+
+### 模式集成校验（`tests/test_mode_validation_integration.py`，23 个测试）
+
+| 测试类 | 数量 | 覆盖内容 |
+|--------|------|---------|
+| TestValidFixtures | 3 | chat/agent/completion 有效 YAML 通过校验 |
+| TestModeStructureConsistency | 2 | config 模式缺 model_config 报错、workflow 含 model_config 警告 |
+| TestChatValidation | 5 | model provider 缺失、prompt_type 非法、variable 格式、agent 启用警告、stop 超限 |
+| TestAgentValidation | 6 | 有效 agent、disabled 报错、无 tools 警告、strategy 非法、tool 字段缺失、strategy 枚举全覆盖 |
+| TestCompletionValidation | 7 | 有效 completion、opening_statement/SQA/STT 警告、dataset_query_variable、无 user_input_form 警告 |

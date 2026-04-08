@@ -1,0 +1,52 @@
+version: "0.6.0"
+kind: app
+app:
+  name: "Test Agent App"
+  mode: agent-chat
+  icon: "🤖"
+  icon_type: emoji
+  icon_background: "#FFEAD5"
+  description: "A test agent app"
+
+model_config:
+  model:
+    provider: openai
+    name: gpt-4o
+    mode: chat
+    completion_params:
+      temperature: 0.7
+      max_tokens: 512
+
+  pre_prompt: "You are an agent with tools."
+  prompt_type: simple
+
+  user_input_form: []
+
+  opening_statement: "Hi! I can use tools to help you."
+  suggested_questions: []
+  suggested_questions_after_answer:
+    enabled: false
+  speech_to_text:
+    enabled: false
+  text_to_speech:
+    enabled: false
+  retriever_resource:
+    enabled: false
+  sensitive_word_avoidance:
+    enabled: false
+  file_upload:
+    enabled: false
+
+  agent_mode:
+    enabled: true
+    strategy: function_call
+    tools:
+      - provider_type: builtin
+        provider_id: calculator
+        tool_name: calculate
+        tool_parameters: {}
+
+  dataset_configs:
+    datasets:
+      datasets: []
+    retrieval_model: single

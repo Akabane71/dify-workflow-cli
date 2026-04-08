@@ -18,7 +18,7 @@ dify-workflow --version
 
 ```bash
 python -m pytest tests/ -v
-# 419 passed
+# 513 passed
 ```
 
 ---
@@ -270,9 +270,20 @@ dify-workflow validate my.yaml --strict           # warnings 也视为错误
 |------|--------|
 | workflow | 顶层字段、图结构、**25 种节点类型的数据校验**（对齐 Dify graphon schema）、边合法性、**环检测**、连通性、pre-publish 清单 |
 | chatflow | 同 workflow + Answer 节点检查 + memory 建议 |
-| chat | model_config 存在性、model 配置、pre_prompt |
-| agent | agent_mode.enabled、strategy 有效性、tools |
-| completion | model_config、pre_prompt、user_input_form |
+| chat | model_config 存在性、**共享校验链**（model→variables→prompt→dataset→features）、opening_statement 类型、suggested_questions 类型、agent_mode 启用警告 |
+| agent | 共享校验链 + agent_mode_fields（enabled/strategy/tools/tool_parameters）、enabled 必须为 true、无 tools 警告 |
+| completion | 共享校验链（含 dataset_query_variable 必填）+ opening_statement/SQA/STT 不适用警告、无 user_input_form 警告 |
+
+**model_config 共享校验链（chat/agent/completion 模式）：**
+
+| 校验模块 | 校验内容 |
+|----------|--------|
+| model | provider/name/mode 非空、completion_params 为 dict、stop ≤ 4 项 |
+| variables | user_input_form 类型、label 必填、variable 正则、max_length ≤ 100、唯一性、select 选项 |
+| prompt | prompt_type 枚举、pre_prompt 非空、chat_prompt_config ≤ 10 条、role 校验 |
+| dataset | retrieval_model 枚举、dataset_ids UUID 格式、completion 模式 query_variable 必填 |
+| agent_mode | enabled 为 bool、strategy 枚举、tool 字段必填、tool_parameters 为 dict |
+| features | enabled 为 bool、sensitive_word_avoidance type 必填、模式适用性警告 |
 
 > **环检测**: Dify 前端在加载 DSL 时运行 `getCycleEdges()` 算法，会移除环上**所有**相关边，导致节点看起来断连。
 > `validate` 会提前检测并报错，避免导入后出现问题。

@@ -27,6 +27,27 @@ If the CLI is not yet installed in the current environment, use [PowerShell inst
 - **Node positioning**: Dify uses screen coordinates (origin top-left, X→right, Y→down). Use `layout` command to auto-arrange.
 - **PowerShell JSON**: On Windows PowerShell, avoid inline JSON with `--data`. Use `--data-file` with UTF-8 (no BOM) files instead.
 
+## Dify App Modes
+
+Dify supports 5 app modes, split into two architectures:
+
+### Graph-based modes (use `workflow.nodes` + `workflow.edges`)
+| Mode | DSL `app.mode` | Description |
+|------|----------------|-------------|
+| **Workflow** | `workflow` | Single-run DAG execution, no conversation. Start → nodes → End. |
+| **Chatflow** | `advanced-chat` | Multi-turn conversation with graph canvas. Uses Answer nodes instead of End. |
+
+### Config-based modes (use `model_config` section)
+| Mode | DSL `app.mode` | Description |
+|------|----------------|-------------|
+| **Chat** | `chat` | Simple LLM chat with optional knowledge retrieval. No graph. |
+| **Agent** | `agent-chat` | Chat + tool calling. `agent_mode.enabled=true` with strategy (function_call/react). |
+| **Completion** | `completion` | Single-turn text generation. Supports `more_like_this`, requires `dataset_query_variable` for knowledge retrieval. |
+
+### Validation coverage by mode
+- **workflow / chatflow**: Full graph validation (node data, edges, cycles, connectivity, frontend crash prevention, publish checklist)
+- **chat / agent-chat / completion**: `model_config` validation (model, prompt, variables, dataset, agent_mode, features) via `model_config_validators/` package
+
 ## Procedure: Create a Workflow from Scratch
 
 Before editing a workflow, prefer this execution order:
